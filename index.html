@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Efekt Dopplera - Symulacja">
+    <title>Efekt Dopplera - Symulacja</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="line-x"></div>
+        <div class="line-y"></div>
+        <div class="dot" id="movingDot"></div>
+        <div class="observer" id="observer1" style="left: 80%;"></div>
+        <div class="observer" id="observer2" style="left: 20%;"></div>
+
+        <!-- Skala osi X -->
+        <div class="scale-x">
+            <div class="scale-x-labels">
+                <span style="left: 0;">-100</span>
+                <span style="left: 10%;">-80</span>
+                <span style="left: 20%;">-60</span>
+                <span style="left: 30%;">-40</span>
+                <span style="left: 40%;">-20</span>
+                <span style="left: 50%;">0</span>
+                <span style="left: 60%;">20</span>
+                <span style="left: 70%;">40</span>
+                <span style="left: 80%;">60</span>
+                <span style="left: 90%;">80</span>
+                <span style="left: 100%;">100</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suwaki kontrolne -->
+    <div class="controls">
+        <label>Prędkość źródła V [m/s]: <span id="speedDisplay">343</span></label>
+        <input type="range" id="speedControl" min="0" max="1000" step="1" value="343">
+        <br>
+        <label>Częstotliwość fali [Hz]: <span id="frequencyDisplay">500</span></label>
+        <input type="range" id="frequencyControl" min="1" max="2000" step="1" value="500">
+    </div>
+
+    <div id="speedDetails"></div>
+
+    <script src="js/app.js" type="module"></script>
+</body>
+</html>
