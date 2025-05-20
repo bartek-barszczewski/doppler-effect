@@ -110,7 +110,7 @@ function createWave(xPosition, timestamp) {
     setTimeout(() => {
         wave.remove();
         waves = waves.filter((w) => w.element !== wave);
-    }, animationDuration * 1000);
+    }, animationDuration * 900);
 }
 
 function createMachCone(timestamp) {
