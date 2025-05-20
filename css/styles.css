@@ -1,29 +1,46 @@
 * {
     box-sizing: border-box;
     font-family: Arial, Helvetica, sans-serif;
+    color: #333;
 }
 
 html, body {
     padding: 0;
     margin: 0;
     overflow: hidden;
+    width: 100%;
+    height: 100%;
 }
 
 body {
     display: flex;
+    width: 100%;
     justify-content: center;
     align-items: center;
     height: 100vh;
     margin: 0;
-    background-color: #f0f0f0;
+}
+
+#speedDetails {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    padding: 15px;
+    border: 1px solid #333;
+    border-radius: 10px;
+    font-size: 16px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+    width: 480px;
 }
 
 .controls {
-    position: absolute;
+    position: fixed;
     top: 1rem;
-    left: 2rem;
+    right: 2rem;
     z-index: 1000;
-    width: 100%;
+    width: 50%;
 }
 
 .controls > input {
@@ -45,28 +62,16 @@ body {
     right: 0;
     height: 2px;
     background-color: rgb(80, 80, 80);
-    z-index: 100;
-}
-
-.line-y {
-    position: absolute;
-    left: 50%;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: rgb(80, 80, 80);
-    z-index: 100;
+    z-index: 1;
 }
 
 .dot {
     position: absolute;
     top: 50%;
-    transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
-    background-color: red;
-    border-radius: 50%;
-    z-index: 200;
+    transform: translate(-60%, -50%);
+    width: 100px;
+    height: auto;
+    z-index: 900000000000;
 }
 
 .observer {
@@ -84,10 +89,10 @@ body {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 10px;
-    height: 10px;
-    background: rgba(0, 110, 255, 0.2);
-    border: 1px solid rgba(0, 110, 255, 0.5);
+    width: 0.65rem;
+    height: 0.65rem;
+    background: rgba(187, 242, 255, 0.06);
+    border: 1px solid rgba(92, 177, 226, 0.05);
     border-radius: 100%;
     z-index: 50;
 }
@@ -131,18 +136,4 @@ body {
 .scale-x span {
     position: absolute;
     transform: translateX(-50%);
-}
-
-#speedDetails {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    background: rgba(255, 255, 255, 0.9);
-    color: #333;
-    padding: 15px;
-    border: 2px solid #333;
-    border-radius: 10px;
-    font-size: 16px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-    width: 480px;
 }

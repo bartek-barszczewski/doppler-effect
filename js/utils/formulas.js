@@ -7,7 +7,7 @@ export const dopplerFrequencySound = (fz, v, vz, vo) => {
 };
 
 // Długość fali
-export const wavelength = (fz, v) => {
+export const countWaveLength = (fz, v) => {
     return v / fz;
 };
 
