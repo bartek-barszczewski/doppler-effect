@@ -68,7 +68,7 @@ body {
 .dot {
     position: absolute;
     top: 50%;
-    transform: translate(-60%, -50%);
+    transform: translate(-50%, -50%);
     width: 100px;
     height: auto;
     z-index: 900000000000;
@@ -88,30 +88,60 @@ body {
 .wave {
     position: absolute;
     top: 50%;
-    transform: translate(-50%, -50%);
-    width: 0.65rem;
-    height: 0.65rem;
+    width: 0.95rem;
+    height: 0.95rem;
     background: rgba(187, 242, 255, 0.06);
-    border: 1px solid rgba(92, 177, 226, 0.05);
+    border: 1px solid rgba(49, 100, 130, 0.133);
     border-radius: 100%;
     z-index: 50;
+}
+
+.wave-reflected {
+    width: 0.95rem;
+    height: 0.95rem;
+    border: 2px solid rgb(0, 102, 204);
+    background: rgba(0, 102, 204, 0.2);
+    border-radius: 100%;
+    animation: wave-expand 4s linear forwards;
+    z-index: 100;
+}
+
+.wave-reflected.shockwave {
+    width: 1rem;
+    height: 1rem;
+    border: 3px solid rgb(255, 0, 0);
+    background: rgba(255, 0, 0, 0.3);
+    border-radius: 100%;
+    animation: wave-expand-shockwave 4s linear forwards; /* Zsynchronizowano z wave-expand */
+    z-index: 100;
 }
 
 .mach-cone {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    border: 2px solid rgba(255, 0, 0, 0.5);
+    border: 5px solid rgba(255, 0, 0, 0.5);
     z-index: 100;
+}
+
+@keyframes wave-expand-shockwave {
+    0% {
+        transform: scale(0.1);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(30);
+        opacity: 0;
+    }
 }
 
 @keyframes wave-expand {
     0% {
-        transform: translate(-50%, -50%) scale(0.1);
+        transform: scale(0.1);
         opacity: 1;
     }
     100% {
-        transform: translate(-50%, -50%) scale(20);
+        transform: scale(20);
         opacity: 0;
     }
 }
@@ -136,4 +166,12 @@ body {
 .scale-x span {
     position: absolute;
     transform: translateX(-50%);
+}
+
+.debug-marker {
+    position: absolute;
+    width: 5px;
+    height: 50px;
+    background-color: yellow;
+    z-index: 1000;
 }
