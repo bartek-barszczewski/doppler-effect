@@ -107,12 +107,13 @@ body {
 }
 
 .wave-reflected.shockwave {
+    position: absolute;
     width: 1rem;
     height: 1rem;
     border: 3px solid rgb(255, 0, 0);
     background: rgba(255, 0, 0, 0.3);
     border-radius: 100%;
-    animation: wave-expand-shockwave 4s linear forwards; /* Zsynchronizowano z wave-expand */
+    animation: wave-expand-shockwave 4s linear forwards;
     z-index: 100;
 }
 

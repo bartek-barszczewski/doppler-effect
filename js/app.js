@@ -19,7 +19,9 @@ if (
     !frequencyDisplay ||
     !speedDetails
 ) {
-    console.error("Brak wymaganych elementów DOM. Upewnij się, że wszystkie elementy istnieją w HTML.");
+    alert("Błąd: Brak wymaganych elementów DOM. Upewnij się, że wszystkie elementy istnieją w HTML.");
+    console.error("Brak wymaganych elementów DOM.");
+    throw new Error("Missing DOM elements");
 }
 
 // Constants
@@ -29,20 +31,21 @@ const OBSERVER2_POS = 20;
 const SCALE_FACTOR = 0.25;
 const WAVE_LIFETIME = 5;
 const CONE_WIDTH_PERCENT = 30;
-const MIN_SHOCKWAVE_INTERVAL = 2; // Minimalny odstęp między falami uderzeniowymi (sekundy)
+const MIN_SHOCKWAVE_INTERVAL = 2;
+const FREQUENCY_SCALE_FACTOR = 10; // Scale frequency for wave creation (1000 Hz → 100 waves)
 
 // State variables
 let sourceX = 50;
-let speed = parseFloat(speedControl.value) || 0;
-let sourceFrequency = parseFloat(frequencyControl.value) || 100;
+let speed = parseFloat(speedControl.value) || 25;
+let sourceFrequency = parseFloat(frequencyControl.value) || 1;
 let lastWaveTime = 0;
 let waves = [];
 let isFrequencyManual = false;
 let currentType = null;
 let lastShockwavePos1 = null;
 let lastShockwavePos2 = null;
-let lastShockwaveTime1 = 0; // Czas ostatniej fali dla obserwatora 1
-let lastShockwaveTime2 = 0; // Czas ostatniej fali dla obserwatora 2
+let lastShockwaveTime1 = 0;
+let lastShockwaveTime2 = 0;
 
 // Initialize
 updateSpeedDisplay();
@@ -58,7 +61,7 @@ speedControl.addEventListener("input", () => {
 
 frequencyControl.addEventListener("input", () => {
     isFrequencyManual = true;
-    sourceFrequency = parseFloat(frequencyControl.value) || 100;
+    sourceFrequency = parseFloat(frequencyControl.value) || 1;
     updateFrequencyDisplay();
 });
 
@@ -95,11 +98,11 @@ function updateSpeedDisplay() {
             Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
             Długość fali: ${lambda.toFixed(2)} m<br>
             Częstotliwość obserwatora 1 (x=${OBSERVER1_POS}%): ${
-            typeof freqObserver1 === "number" ? freqObserver1.toFixed(1) + " Hz" : freqObserver1
-        }<br>
+                typeof freqObserver1 === "number" ? freqObserver1.toFixed(1) + " Hz" : freqObserver1
+            }<br>
             Częstotliwość obserwatora 2 (x=${OBSERVER2_POS}%): ${
-            typeof freqObserver2 === "number" ? freqObserver2.toFixed(1) + " Hz" : freqObserver2
-        }
+                typeof freqObserver2 === "number" ? freqObserver2.toFixed(1) + " Hz" : freqObserver2
+            }
         `;
     } catch (error) {
         console.error("Błąd w updateSpeedDisplay:", error);
@@ -164,28 +167,30 @@ function createMachCone(timestamp) {
     cone.style.clipPath = `polygon(100% 50%, 0% ${50 - coneHeight}%, 0% ${50 + coneHeight}%)`;
     container.appendChild(cone);
 
-    const period = 1 / sourceFrequency;
+    const scaledFrequency = sourceFrequency / FREQUENCY_SCALE_FACTOR;
+    const period = 1 / scaledFrequency;
     if (timestamp / 1000 - lastWaveTime >= period) {
         createWave(sourceX, timestamp);
         lastWaveTime = timestamp / 1000;
     }
 }
 
-function createReflectedWave(xPosition, timestamp) {
+function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = null) {
     const wave = document.createElement("div");
     wave.classList.add("wave-reflected");
-    if (speed >= SPEED_OF_SOUND && (currentType === "jet" || currentType === "missile")) {
+    if (isShockwave) {
         wave.classList.add("shockwave");
         wave.style.width = "1rem";
         wave.style.height = "1rem";
     }
-    wave.style.left = `${xPosition}%`;
-    wave.style.top = "60%";
+    // Place shockwave at edgeX (Mach cone edge) near observer, otherwise at observer's position
+    wave.style.left = isShockwave ? `${edgeX}%` : `${xPosition}%`;
+    wave.style.top = "50%"; // Align with source and debug marker
     const translateX =
         speed >= SPEED_OF_SOUND ? -(20 + (20 * speed) / SPEED_OF_SOUND) : -(50 + (50 * speed) / SPEED_OF_SOUND);
     wave.style.transform = `translate(${translateX}%, -50%)`;
     console.debug(
-        `Fala odbita: xPosition=${xPosition.toFixed(2)}%, translateX=${translateX.toFixed(2)}%, speed=${speed.toFixed(
+        `Fala odbita: xPosition=${(isShockwave ? edgeX : xPosition).toFixed(2)}%, translateX=${translateX.toFixed(2)}%, speed=${speed.toFixed(
             2
         )} m/s, type=${currentType}, shockwave=${wave.classList.contains("shockwave")}`
     );
@@ -193,7 +198,7 @@ function createReflectedWave(xPosition, timestamp) {
 
     waves.push({
         element: wave,
-        xPosition: xPosition,
+        xPosition: isShockwave ? edgeX : xPosition,
         createdAt: timestamp / 1000,
     });
 
@@ -203,18 +208,18 @@ function createReflectedWave(xPosition, timestamp) {
     }, WAVE_LIFETIME * 1000);
 }
 
-function scheduleReflectedWave(observerPos, sourcePos, timestamp) {
+function scheduleReflectedWave(observerPos, sourcePos, timestamp, edgeX = null) {
     const distancePercent = Math.abs(observerPos - sourcePos);
     const containerWidthPx = container.clientWidth || 1000;
     const distancePx = (distancePercent / 100) * containerWidthPx;
-    const delaySeconds = (distancePx / SPEED_OF_SOUND) * SCALE_FACTOR; // Skalowanie opóźnienia
+    const delaySeconds = (distancePx / SPEED_OF_SOUND) * SCALE_FACTOR;
     console.debug(
         `Planowanie fali: observerPos=${observerPos}%, sourcePos=${sourcePos.toFixed(2)}%, delay=${delaySeconds.toFixed(
             2
-        )}s`
+        )}s, edgeX=${edgeX ? edgeX.toFixed(2) : "null"}%`
     );
     setTimeout(() => {
-        createReflectedWave(observerPos, performance.now());
+        createReflectedWave(observerPos, performance.now(), speed >= SPEED_OF_SOUND && (currentType === "jet" || currentType === "missile"), edgeX);
     }, delaySeconds * 1000);
 }
 
@@ -224,14 +229,9 @@ function createDebugMarker(xPosition) {
 
     const marker = document.createElement("div");
     marker.classList.add("debug-marker");
-    marker.style.position = "absolute";
     marker.style.left = `${xPosition}%`;
     marker.style.top = "50%";
-    marker.style.width = "5px";
-    marker.style.height = "50px";
-    marker.style.backgroundColor = "yellow";
     marker.style.transform = "translate(-50%, -50%)";
-    marker.style.zIndex = "1000";
     container.appendChild(marker);
 
     setTimeout(() => {
@@ -334,16 +334,17 @@ function update(timestamp) {
         updateFrequencyDisplay();
     }
 
-    const period = 1 / sourceFrequency;
+    const scaledFrequency = sourceFrequency / FREQUENCY_SCALE_FACTOR;
+    const period = 1 / scaledFrequency;
     if (speed < SPEED_OF_SOUND && timestamp / 1000 - lastWaveTime >= period) {
         createWave(sourceX, timestamp);
         lastWaveTime = timestamp / 1000;
     }
 
     const waveWidthPx = 0.95 * parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const proximityThreshold = (waveWidthPx / (container.clientWidth || 1000)) * 100 * 5; // Zmniejszono do * 5
+    const proximityThreshold = (waveWidthPx / (container.clientWidth || 1000)) * 100 * 5;
 
-    // Sprawdzanie bliskości dla obserwatora 1
+    // Observer 1
     if (speed < SPEED_OF_SOUND) {
         if (
             Math.abs(sourceX - OBSERVER1_POS) < proximityThreshold &&
@@ -374,13 +375,13 @@ function update(timestamp) {
                     )}%, ` +
                     `timeSinceLast=${(currentTime - lastShockwaveTime1).toFixed(2)}s, wyzwalanie fali`
             );
-            scheduleReflectedWave(OBSERVER1_POS, sourceX, timestamp);
+            scheduleReflectedWave(OBSERVER1_POS, sourceX, timestamp, edgeX);
             lastShockwavePos1 = sourceX;
             lastShockwaveTime1 = currentTime;
         }
     }
 
-    // Sprawdzanie bliskości dla obserwatora 2
+    // Observer 2
     if (speed < SPEED_OF_SOUND) {
         if (
             Math.abs(sourceX - OBSERVER2_POS) < proximityThreshold &&
@@ -411,7 +412,7 @@ function update(timestamp) {
                     )}%, ` +
                     `timeSinceLast=${(currentTime - lastShockwaveTime2).toFixed(2)}s, wyzwalanie fali`
             );
-            scheduleReflectedWave(OBSERVER2_POS, sourceX, timestamp);
+            scheduleReflectedWave(OBSERVER2_POS, sourceX, timestamp, edgeX);
             lastShockwavePos2 = sourceX;
             lastShockwaveTime2 = currentTime;
         }
