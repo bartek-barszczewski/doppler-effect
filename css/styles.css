@@ -1,7 +1,6 @@
 * {
     box-sizing: border-box;
     font-family: Arial, Helvetica, sans-serif;
-    color: #333;
 }
 
 html, body {
@@ -37,10 +36,15 @@ body {
 
 .controls {
     position: fixed;
-    top: 1rem;
-    right: 2rem;
+    bottom: 5rem;
+    left: 2rem;
     z-index: 1000;
     width: 50%;
+}
+
+.controls > *, .controls label {
+    color: white !important;
+    font-weight: bolder;
 }
 
 .controls > input {
@@ -91,25 +95,15 @@ body {
     width: 0.95rem;
     height: 0.95rem;
     background: rgba(187, 242, 255, 0.06);
-    border: 1px solid rgba(49, 100, 130, 0.133);
+    border: 1px solid #9ac5ff48;
     border-radius: 100%;
     z-index: 50;
 }
 
-.wave-reflected {
-    width: 0.95rem;
-    height: 0.95rem;
-    border: 2px solid rgb(0, 102, 204);
-    background: rgba(0, 102, 204, 0.2);
-    border-radius: 100%;
-    animation: wave-expand 4s linear forwards;
-    z-index: 100;
-}
-
 .wave-reflected.shockwave {
     position: absolute;
-    width: 1rem;
-    height: 1rem;
+    width: 0.95rem;
+    height: 0.95rem;
     border: 3px solid rgb(255, 0, 0);
     background: rgba(255, 0, 0, 0.3);
     border-radius: 100%;
