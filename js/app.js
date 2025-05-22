@@ -1,4 +1,4 @@
-import {dopplerFrequencySound, countWaveLength} from "./utils/formulas.js";
+import { dopplerFrequencySound, countWaveLength } from "./utils/formulas.js";
 
 // DOM elements
 const movingDot = document.getElementById("movingDot");
@@ -8,110 +8,270 @@ const frequencyControl = document.getElementById("frequencyControl");
 const speedDisplay = document.getElementById("speedDisplay");
 const frequencyDisplay = document.getElementById("frequencyDisplay");
 const speedDetails = document.getElementById("speedDetails");
-
-// Zabezpieczenie przed brakiem elementów DOM
-if (
-    !movingDot ||
-    !container ||
-    !speedControl ||
-    !frequencyControl ||
-    !speedDisplay ||
-    !frequencyDisplay ||
-    !speedDetails
-) {
-    alert("Błąd: Brak wymaganych elementów DOM. Upewnij się, że wszystkie elementy istnieją w HTML.");
-    console.error("Brak wymaganych elementów DOM.");
-    throw new Error("Missing DOM elements");
-}
+const shockwaveUpper = document.getElementById('shockwave_upper');
+const shockwaveLower = document.getElementById('shockwave_lower');
+const observer = document.getElementById('observer1');
 
 // Constants
+const DEFAULT_FREQ = 400;
+const DEFAULT_FREQ_AMB = 900;
+const DEFAULT_SPEED = 25;
+
 const SPEED_OF_SOUND = 343;
-const OBSERVER1_POS = 80;
-const OBSERVER2_POS = 20;
-const SCALE_FACTOR = 0.25;
-const WAVE_LIFETIME = 5;
+const SPEED_OF_SOUND_SIM = 0.5; // % per second
+const SCALE_FACTOR = 1.5;
+const WAVE_LIFETIME = 1;
 const CONE_WIDTH_PERCENT = 30;
-const MIN_SHOCKWAVE_INTERVAL = 2;
-const FREQUENCY_SCALE_FACTOR = 10; // Scale frequency for wave creation (1000 Hz → 100 waves)
+const MIN_SHOCKWAVE_INTERVAL = 5;
+const FREQUENCY_SCALE_FACTOR = 50;
 
 // State variables
+let observerX = 50; // Jedyny obserwator na pozycji 50%
 let sourceX = 50;
-let speed = parseFloat(speedControl.value) || 25;
-let sourceFrequency = parseFloat(frequencyControl.value) || 1;
+let speed = parseFloat(speedControl.value) || DEFAULT_SPEED;
+let sourceFrequency = parseFloat(frequencyControl.value / 100) || DEFAULT_FREQ;
 let lastWaveTime = 0;
 let waves = [];
 let isFrequencyManual = false;
 let currentType = null;
-let lastShockwavePos1 = null;
-let lastShockwavePos2 = null;
-let lastShockwaveTime1 = 0;
-let lastShockwaveTime2 = 0;
+let lastShockwavePos = null;
+let lastShockwaveTime = 0;
+let freqObserver = null;
+let reflectedWaveTimeouts = [];
+let reflection2DTimeouts = [];
 
-// Initialize
-updateSpeedDisplay();
-updateFrequencyDisplay();
+const c = 343; // Prędkość dźwięku w m/s
+let audioContext = null;
+let osc = null;
+let gain = null;
+let lfo = null;
+let lfoGain = null;
+let currentSoundType = null;
+let lastEngineSoundType = null;
 
-// Events
-speedControl.addEventListener("input", () => {
-    speed = parseFloat(speedControl.value) || 0;
-    console.debug(`Nowa prędkość: ${speed.toFixed(2)} m/s, currentType: ${currentType}`);
-    currentType = null;
-    updateSpeedDisplay();
-});
+function startAmbulanceSiren() {
+    stopAmbulanceSiren();
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    osc = audioContext.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = 700;
+    lfo = audioContext.createOscillator();
+    lfo.type = 'triangle';
+    lfo.frequency.value = 5; // <<< PRZYSPIESZENIE SYRENY
+    lfoGain = audioContext.createGain();
+    lfoGain.gain.value = 250; // Szerokość wahnięcia (więcej = ostrzejszy efekt)
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    gain = audioContext.createGain();
+    gain.gain.value = 0.01;
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+    lfo.start();
+}
 
-frequencyControl.addEventListener("input", () => {
-    isFrequencyManual = true;
-    sourceFrequency = parseFloat(frequencyControl.value) || 1;
-    updateFrequencyDisplay();
-});
+function stopAmbulanceSiren() {
+    if (osc) { try { osc.stop(); osc.disconnect(); } catch (e) { } osc = null; }
+    if (lfo) { try { lfo.stop(); lfo.disconnect(); } catch (e) { } lfo = null; }
+    if (lfoGain) { try { lfoGain.disconnect(); } catch (e) { } lfoGain = null; }
+    if (gain) { try { gain.disconnect(); } catch (e) { } gain = null; }
+    if (audioContext) { try { audioContext.close(); } catch (e) { } audioContext = null; }
+}
 
-function updateSpeedDisplay() {
-    const kmh = speed * 3.6;
-    const mph = speed * 2.23694;
-    let lambda, freqObserver1, freqObserver2;
-    try {
-        lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
-        const mach = speed / SPEED_OF_SOUND;
+function startEngineSound(type) {
+    if (currentSoundType === type) return;
+    stopEngineSound();
+    currentSoundType = type;
+    if (type === 'ambulance') {
+        startAmbulanceSiren();
+        return;
+    }
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    osc = audioContext.createOscillator();
+    gain = audioContext.createGain();
+    if (type === 'car') {
+        osc.type = 'square';
+        osc.frequency.value = 120;
+    } else if (type === 'sport') {
+        osc.type = 'square';
+        osc.frequency.value = 60;
+    } else {
+        osc.type = 'sine';
+        osc.frequency.value = 40;
+    }
+    gain.gain.value = 0.5;
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    osc.start();
+}
 
-        if (speed < SPEED_OF_SOUND) {
-            freqObserver1 = dopplerFrequencySound(
-                sourceFrequency,
-                SPEED_OF_SOUND,
-                sourceX < OBSERVER1_POS ? speed : -speed,
-                0
-            );
-            freqObserver2 = dopplerFrequencySound(
-                sourceFrequency,
-                SPEED_OF_SOUND,
-                sourceX < OBSERVER2_POS ? speed : -speed,
-                0
-            );
-        } else {
-            freqObserver1 = "N/A (naddźwiękowe)";
-            freqObserver2 = "N/A (naddźwiękowe)";
+function stopEngineSound() {
+    stopAmbulanceSiren();
+    if (osc) { try { osc.stop(); osc.disconnect(); } catch (e) { } osc = null; }
+    if (gain) { try { gain.disconnect(); } catch (e) { } gain = null; }
+    if (audioContext) { try { audioContext.close(); } catch (e) { } audioContext = null; }
+    currentSoundType = null;
+}
+
+function updateEngineSound(type, srcX, observerX, v) {
+    // Uruchamiaj/zmieniaj tylko jeśli typ się zmienił!
+    if (type !== lastEngineSoundType) {
+        startEngineSound(type);
+        lastEngineSoundType = type;
+    }
+    if (!['car', 'ambulance', 'sport'].includes(type)) {
+        stopEngineSound();
+        return;
+    }
+    // NIE DOTYKAJ freq/gain dla ambulance (robi to LFO)
+    if (type !== 'ambulance' && gain && osc && audioContext) {
+        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora (w %)
+        // Przelicz na “metry” – załóż, że 100% to 100 metrów (możesz zmienić skalę!)
+        const percentToMeters = 1; // Możesz zmienić skalę na 3.43, by 100% = 343 m
+        const distance = Math.abs(srcX - observerX) * percentToMeters;
+
+        // Głośność maleje z kwadratem odległości
+        // Przy bardzo małej odległości głośność nie powinna być nieskończona (wprowadzamy minimum)
+        const minDistance = 1; // 1 metr minimum (nie pozwala na “inf”)
+        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.30;
+        // Jeżeli źródło jest bardzo daleko (np. >20m) – wycisz całkowicie
+        const silenceThreshold = 20;
+        let appliedVolume = (distance > silenceThreshold) ? 0 : volume;
+
+        let base, scale, low, high;
+        if (type === 'car') {
+            base = 80; scale = 0.6; low = 50; high = 220;
+        } else if (type === 'sport') {
+            base = 30; scale = 0.11; low = 20; high = 52;
         }
+        let freq = base + scale * v;
+        freq = Math.max(low, Math.min(freq, high));
+        if (srcX < observerX) freq *= 1.03;
+        else if (srcX > observerX) freq *= 0.97;
+        gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
+        osc.frequency.linearRampToValueAtTime(freq, audioContext.currentTime + 0.02);
+    }
 
-        speedDisplay.textContent = speed.toFixed(2);
-        speedDetails.innerHTML = `
-            Prędkość: ${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph<br>
-            Liczba Macha: ${mach.toFixed(2)}<br>
-            Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
-            Długość fali: ${lambda.toFixed(2)} m<br>
-            Częstotliwość obserwatora 1 (x=${OBSERVER1_POS}%): ${
-                typeof freqObserver1 === "number" ? freqObserver1.toFixed(1) + " Hz" : freqObserver1
-            }<br>
-            Częstotliwość obserwatora 2 (x=${OBSERVER2_POS}%): ${
-                typeof freqObserver2 === "number" ? freqObserver2.toFixed(1) + " Hz" : freqObserver2
-            }
-        `;
-    } catch (error) {
-        console.error("Błąd w updateSpeedDisplay:", error);
+    if (type !== lastEngineSoundType) {
+        startEngineSound(type);
+        lastEngineSoundType = type;
+    }
+    if (!['car', 'ambulance', 'sport'].includes(type)) {
+        stopEngineSound();
+        return;
+    }
+    // --------- AMBULANCE: dynamiczny gain! ---------
+    if (type === 'ambulance' && gain && audioContext) {
+        // Oblicz odległość jak dla innych pojazdów
+        const percentToMeters = 1;
+        const distance = Math.abs(srcX - observerX) * percentToMeters;
+        const minDistance = 1;
+        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.06; // <= możesz zmieniać ten współczynnik
+        const silenceThreshold = 20;
+        let appliedVolume = (distance > silenceThreshold) ? 0 : volume;
+        // ANIMUJ głośność (łagodnie)
+        gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.03);
+        // UWAGA: nie dotykaj częstotliwości ambulansu! (robi to LFO)
+    }
+    // --------- RESZTA jak było ---------
+    else if (type !== 'ambulance' && gain && osc && audioContext) {
+        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora (w %)
+        const percentToMeters = 1;
+        const distance = Math.abs(srcX - observerX) * percentToMeters;
+        const minDistance = 1;
+        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.30;
+        const silenceThreshold = 20;
+        let appliedVolume = (distance > silenceThreshold) ? 0 : volume;
+        let base, scale, low, high;
+        if (type === 'car') {
+            base = 80; scale = 0.6; low = 50; high = 220;
+        } else if (type === 'sport') {
+            base = 30; scale = 0.11; low = 20; high = 52;
+        }
+        let freq = base + scale * v;
+        freq = Math.max(low, Math.min(freq, high));
+        if (srcX < observerX) freq *= 1.03;
+        else if (srcX > observerX) freq *= 0.97;
+        gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
+        osc.frequency.linearRampToValueAtTime(freq, audioContext.currentTime + 0.02);
     }
 }
 
-function updateFrequencyDisplay() {
-    frequencyDisplay.textContent = sourceFrequency.toFixed(1);
-    updateSpeedDisplay();
+// Funkcja aktualizująca wyświetlacz prędkości i częstotliwości
+function updateDisplays() {
+    speedDisplay.textContent = speedControl.value;
+    frequencyDisplay.textContent = frequencyControl.value;
+}
+
+function updateMachConeAndLines() {
+    // Pobierz pozycję kropki w pikselach względem kontenera
+    const rect = movingDot.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const dotX = rect.left - containerRect.left + rect.width / 2;
+    const dotY = rect.top - containerRect.top + rect.height / 2;
+
+    // Pobierz aktualną prędkość źródła z suwaka
+    const V = parseFloat(speedControl.value);
+    const c = SPEED_OF_SOUND;
+
+    if (V > c) {
+        // Oblicz Mach angle
+        const M = V / c;
+        const theta = Math.asin(1 / M);
+        const tanTheta = Math.tan(theta);
+
+        // Oblicz końce linii
+        const y2_upper = dotY + tanTheta * dotX;
+        const y2_lower = dotY - tanTheta * dotX;
+
+        shockwaveUpper.setAttribute('x1', dotX);
+        shockwaveUpper.setAttribute('y1', dotY);
+        shockwaveUpper.setAttribute('x2', 0);
+        shockwaveUpper.setAttribute('y2', y2_upper);
+        shockwaveLower.setAttribute('x1', dotX);
+        shockwaveLower.setAttribute('y1', dotY);
+        shockwaveLower.setAttribute('x2', 0);
+        shockwaveLower.setAttribute('y2', y2_lower);
+        shockwaveUpper.style.display = 'block';
+        shockwaveLower.style.display = 'block';
+    } else {
+        shockwaveUpper.style.display = 'none';
+        shockwaveLower.style.display = 'none';
+
+    }
+}
+
+function createReflectionWave(xPosition, yPosition, amplitude = 1) {
+    const wave = document.createElement("div");
+    wave.classList.add("wave-reflected-2d");
+    wave.style.left = `${xPosition}%`;
+    wave.style.top = `${yPosition}%`;
+    wave.style.opacity = amplitude;
+    wave.style.width = "30px";
+    wave.style.height = "30px";
+    wave.style.transform = "translate(-50%, -50%) scale(0.2)";
+    container.appendChild(wave);
+
+    wave.animate([
+        { transform: "translate(-50%, -50%) scale(0.2)", opacity: amplitude },
+        { transform: "translate(-50%, -50%) scale(10)", opacity: 0 }
+    ], {
+        duration: 2000,
+        easing: "linear"
+    });
+
+    setTimeout(() => wave.remove(), 2000);
+}
+
+function schedule2DReflection(observerPosPercent, wavePosPercent, timestamp) {
+    const distancePercent = Math.abs(observerPosPercent - wavePosPercent);
+    const delaySeconds = distancePercent / SPEED_OF_SOUND_SIM;
+    const timeoutId = setTimeout(() => {
+        createReflectionWave(observerPosPercent, 50, 1);
+    }, delaySeconds * 1000 ); 
+    // jeśli obiekt emitujący fale jest dalej od obserwatora to wszystkie fale powinny zniknąć
+    // fale odbite dalej są emitowane mimo że nie są w zasięgu emitowanej fali
+    reflection2DTimeouts.push(timeoutId);
 }
 
 function createWave(xPosition, timestamp) {
@@ -121,9 +281,7 @@ function createWave(xPosition, timestamp) {
     wave.style.top = "50%";
     const translateX = -(50 + (50 * speed) / SPEED_OF_SOUND);
     wave.style.transform = `translate(${translateX}%, -50%)`;
-    console.debug(
-        `Fala: xPosition=${xPosition.toFixed(2)}%, translateX=${translateX.toFixed(2)}%, speed=${speed.toFixed(2)} m/s`
-    );
+
     container.appendChild(wave);
 
     let lambda;
@@ -145,13 +303,179 @@ function createWave(xPosition, timestamp) {
         wave.remove();
         waves = waves.filter((w) => w.element !== wave);
     }, WAVE_LIFETIME * 1000);
+
+    // Schedule reflections for subsonic speeds
+    if (speed < SPEED_OF_SOUND) {
+        schedule2DReflection(observerX, xPosition, timestamp);
+        scheduleReflectedWave(observerX, xPosition, timestamp, null, false);
+    }
+}
+
+function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = null) {
+    const wave = document.createElement("div");
+    wave.classList.add("wave-reflected");
+    if (isShockwave) {
+        wave.classList.add("shockwave");
+        wave.style.width = "1rem";
+        wave.style.height = "1rem";
+    }
+    wave.style.left = isShockwave ? `${edgeX}%` : `${xPosition}%`;
+    wave.style.top = "50%";
+    const translateX =
+        speed >= SPEED_OF_SOUND ? -(20 + (20 * speed) / SPEED_OF_SOUND) : -(50 + (50 * speed) / SPEED_OF_SOUND);
+    wave.style.transform = `translate(${translateX}%, -50%)`;
+
+    container.appendChild(wave);
+
+    waves.push({
+        element: wave,
+        xPosition: isShockwave ? edgeX : xPosition,
+        createdAt: timestamp / 1000,
+    });
+
+    setTimeout(() => {
+        wave.remove();
+        waves = waves.filter((w) => w.element !== wave);
+    }, WAVE_LIFETIME * 1000);
+}
+
+function scheduleReflectedWave(observerPos, wavePos, timestamp, edgeX = null, isShockwave = false) {
+    let delaySeconds;
+    if (isShockwave) {
+        delaySeconds = 0;
+    } else {
+        const distancePercent = Math.abs(observerPos - wavePos);
+        delaySeconds = distancePercent / SPEED_OF_SOUND_SIM;
+    }
+    const timeoutId = setTimeout(() => {
+        createReflectedWave(observerPos, performance.now(), isShockwave, edgeX);
+    }, delaySeconds * 1000 );
+    reflectedWaveTimeouts.push(timeoutId);
+}
+
+function clearReflectedWaves() {
+    // Usuń timeouty
+    reflectedWaveTimeouts.forEach(id => clearTimeout(id));
+    reflectedWaveTimeouts = [];
+    reflection2DTimeouts.forEach(id => clearTimeout(id));
+    reflection2DTimeouts = [];
+    // Usuń fale z DOM
+    document.querySelectorAll('.wave-reflected, .wave-reflected-2d').forEach(el => el.remove());
+}
+
+// Events
+speedControl.addEventListener("input", () => {
+    speed = parseFloat(speedControl.value) || 0;
+    console.debug(`Nowa prędkość: ${speed.toFixed(2)} m/s, currentType: ${currentType}`);
+    currentType = null;
+    updateSpeedDisplay();
+    clearReflectedWaves(); 
+    const existingCone = document.querySelector(".mach-cone");
+    if (existingCone) existingCone.remove();
+});
+
+frequencyControl.addEventListener("input", () => {
+    isFrequencyManual = true;
+    sourceFrequency = parseFloat(frequencyControl.value) || 1;
+    updateFrequencyDisplay();
+    clearReflectedWaves(); 
+});
+
+function updateDopplerDetails() {
+    // freqObserver może być "N/A (naddźwiękowe)", sprawdzamy typ
+    let lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
+    let freqObserverNum = (typeof freqObserver === "number") ? freqObserver : null;
+    let deltaF = freqObserverNum !== null ? freqObserverNum - sourceFrequency : null;
+    let dopplerCoeff = freqObserverNum !== null ? freqObserverNum / sourceFrequency : null;
+    let distancePercent = Math.abs(observerX - sourceX);
+    let timeToObserverPercent = distancePercent / SPEED_OF_SOUND_SIM;
+
+    // uproszczone przeliczenie przesunięcia fazowego (procenty, bo nie znamy metrów)
+    let phaseShift = 2 * Math.PI * (distancePercent / 100) / (lambda > 0 ? (lambda / 100) : 1);
+    let energyAtObs = 1 / Math.pow(distancePercent || 1, 2); // zapobiegamy dzieleniu przez 0
+    let isAudible = sourceFrequency >= 20 && sourceFrequency <= 20000;
+    let wavefrontsPerSecond = sourceFrequency;
+
+    document.getElementById("dopplerDetails").innerHTML = `
+        <b>Dodatkowe parametry:</b><br>
+        Przesunięcie Dopplera Δf: ${deltaF !== null ? deltaF.toFixed(2) + ' Hz' : '—'}<br>
+        Współczynnik Dopplera: ${dopplerCoeff !== null ? dopplerCoeff.toFixed(3) : '—'}<br>
+        Czas dotarcia fali: ${timeToObserverPercent.toFixed(3)} s (symulacja)<br>
+        Przesunięcie fazowe: ${phaseShift.toFixed(2)} rad<br>
+        Energia względna: ${energyAtObs.toExponential(2)}<br>
+        Słyszalność: ${isAudible ? 'TAK' : 'NIE'}<br>
+        Liczba frontów na sekundę: ${wavefrontsPerSecond.toFixed(0)}
+    `;
+}
+
+function updateSpeedDisplay() {
+    const kmh = speed * 3.6;
+    const mph = speed * 2.23694;
+    let lambda, machAngleDeg, machAngleRad;
+    try {
+        lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
+        const mach = speed / SPEED_OF_SOUND;
+        if (speed < SPEED_OF_SOUND) {
+            freqObserver = dopplerFrequencySound(
+                sourceFrequency,
+                SPEED_OF_SOUND,
+                sourceX < observerX ? speed : -speed,
+                0
+            );
+            machAngleDeg = '-';
+            machAngleRad = '-';
+        } else {
+            freqObserver = "N/A (naddźwiękowe)";
+            // Kąt stożka Macha tylko dla V > c
+            const theta = Math.asin(SPEED_OF_SOUND / speed); // radiany
+            machAngleRad = theta;
+            machAngleDeg = theta * (180 / Math.PI);
+        }
+
+        // --- DYNAMIC DISTANCE CALCULATION ---
+        const distance = sourceX - observerX;
+        let distanceText;
+        if (distance < 0) {
+            distanceText = `PRZED obserwatorem (${distance.toFixed(2)}%)`;
+        } else if (distance > 0) {
+            distanceText = `ZA obserwatorem (+${distance.toFixed(2)}%)`;
+        } else {
+            distanceText = 'Na obserwatorze (0%)';
+        }
+
+        speedDisplay.textContent = speed.toFixed(2);
+        speedDetails.innerHTML = `
+            Prędkość: ${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph<br>
+            Liczba Macha: ${mach.toFixed(2)}<br>
+            Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
+            Długość fali: ${lambda.toFixed(2)} m<br>
+            Częstotliwość obserwatora (x=${observerX}%): ${typeof freqObserver === "number" ? freqObserver.toFixed(1) + " Hz" : freqObserver
+            }<br>
+            Kąt stożka Macha: ${machAngleDeg !== '-' ? machAngleDeg.toFixed(2) + '° / ' + machAngleRad.toFixed(3) + ' rad' : '— (podświetlenie dla poddźwiękowych)'}
+            <br>
+            <b>Odległość od obserwatora: ${distanceText}</b>
+        `;
+        updateDopplerDetails();
+    } catch (error) {
+        console.error("Błąd w updateSpeedDisplay:", error);
+    }
+}
+
+
+function updateFrequencyDisplay() {
+    frequencyDisplay.textContent = sourceFrequency.toFixed(1);
+    updateSpeedDisplay();
 }
 
 function createMachCone(timestamp) {
     const existingCone = document.querySelector(".mach-cone");
     if (existingCone) existingCone.remove();
 
-    if (speed < SPEED_OF_SOUND || (currentType !== "jet" && currentType !== "missile")) return;
+    if (speed < SPEED_OF_SOUND || (currentType !== "jet" && currentType !== "missile")) {
+        const existingCone = document.querySelector(".mach-cone");
+        if (existingCone) existingCone.remove();
+        return;
+    }
 
     const machAngle = Math.asin(SPEED_OF_SOUND / speed) * (180 / Math.PI);
     const coneWidth = CONE_WIDTH_PERCENT;
@@ -175,54 +499,6 @@ function createMachCone(timestamp) {
     }
 }
 
-function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = null) {
-    const wave = document.createElement("div");
-    wave.classList.add("wave-reflected");
-    if (isShockwave) {
-        wave.classList.add("shockwave");
-        wave.style.width = "1rem";
-        wave.style.height = "1rem";
-    }
-    // Place shockwave at edgeX (Mach cone edge) near observer, otherwise at observer's position
-    wave.style.left = isShockwave ? `${edgeX}%` : `${xPosition}%`;
-    wave.style.top = "50%"; // Align with source and debug marker
-    const translateX =
-        speed >= SPEED_OF_SOUND ? -(20 + (20 * speed) / SPEED_OF_SOUND) : -(50 + (50 * speed) / SPEED_OF_SOUND);
-    wave.style.transform = `translate(${translateX}%, -50%)`;
-    console.debug(
-        `Fala odbita: xPosition=${(isShockwave ? edgeX : xPosition).toFixed(2)}%, translateX=${translateX.toFixed(2)}%, speed=${speed.toFixed(
-            2
-        )} m/s, type=${currentType}, shockwave=${wave.classList.contains("shockwave")}`
-    );
-    container.appendChild(wave);
-
-    waves.push({
-        element: wave,
-        xPosition: isShockwave ? edgeX : xPosition,
-        createdAt: timestamp / 1000,
-    });
-
-    setTimeout(() => {
-        wave.remove();
-        waves = waves.filter((w) => w.element !== wave);
-    }, WAVE_LIFETIME * 1000);
-}
-
-function scheduleReflectedWave(observerPos, sourcePos, timestamp, edgeX = null) {
-    const distancePercent = Math.abs(observerPos - sourcePos);
-    const containerWidthPx = container.clientWidth || 1000;
-    const distancePx = (distancePercent / 100) * containerWidthPx;
-    const delaySeconds = (distancePx / SPEED_OF_SOUND) * SCALE_FACTOR;
-    console.debug(
-        `Planowanie fali: observerPos=${observerPos}%, sourcePos=${sourcePos.toFixed(2)}%, delay=${delaySeconds.toFixed(
-            2
-        )}s, edgeX=${edgeX ? edgeX.toFixed(2) : "null"}%`
-    );
-    setTimeout(() => {
-        createReflectedWave(observerPos, performance.now(), speed >= SPEED_OF_SOUND && (currentType === "jet" || currentType === "missile"), edgeX);
-    }, delaySeconds * 1000);
-}
-
 function createDebugMarker(xPosition) {
     const existingMarker = document.querySelector(".debug-marker");
     if (existingMarker) existingMarker.remove();
@@ -244,10 +520,8 @@ function update(timestamp) {
     sourceX += (speed / SPEED_OF_SOUND) * deltaTime * 10 * SCALE_FACTOR;
     if (sourceX > 100) {
         sourceX -= 100;
-        lastShockwavePos1 = null;
-        lastShockwavePos2 = null;
-        lastShockwaveTime1 = 0;
-        lastShockwaveTime2 = 0;
+        lastShockwavePos = null;
+        lastShockwaveTime = 0;
     }
 
     if (movingDot) {
@@ -268,6 +542,9 @@ function update(timestamp) {
         document.body.style.backgroundPosition = "0px -280px";
         document.body.style.backgroundColor = "#e6a142";
         newType = "car";
+        observer.style.top = "45%";
+        observer.style.height = "80px";
+
     } else if (isAmbulance) {
         document.body.style.backgroundImage = "url('./../js/img/arizona_road.jpg')";
         document.body.style.backgroundSize = "cover";
@@ -275,6 +552,9 @@ function update(timestamp) {
         document.body.style.backgroundPosition = "0px -280px";
         document.body.style.backgroundColor = "#e6a142";
         newType = "ambulance";
+        observer.style.top = "45%";
+        observer.style.height = "80px";
+
     } else if (isCarSport) {
         document.body.style.backgroundImage = "url('./../js/img/arizona_road.jpg')";
         document.body.style.backgroundSize = "cover";
@@ -282,18 +562,27 @@ function update(timestamp) {
         document.body.style.backgroundPosition = "0px -280px";
         document.body.style.backgroundColor = "#e6a142";
         newType = "sport";
+        observer.style.top = "45%";
+        observer.style.height = "80px";
+
     } else if (isJet) {
         document.body.style.backgroundImage = "url('./../js/img/sky.jpg')";
         document.body.style.backgroundSize = "cover";
         document.body.style.backgroundPosition = "0px 180px";
         document.body.style.backgroundColor = "rgb(193, 255, 244)";
         newType = "jet";
+        observer.style.top = "75.5%";
+        observer.style.height = "35px";
+
     } else if (isMissile) {
         document.body.style.backgroundImage = "url('./../js/img/sky.jpg')";
         document.body.style.backgroundSize = "cover";
         document.body.style.backgroundPosition = "0px 180px";
         document.body.style.backgroundColor = "rgb(193, 255, 244)";
         newType = "missile";
+        observer.style.top = "75.5%";
+        observer.style.height = "35px";
+
     }
 
     if (newType !== currentType) {
@@ -302,33 +591,29 @@ function update(timestamp) {
         if (newType === "car") {
             movingDot.src = "./../js/img/car_yellow.png";
             if (!isFrequencyManual) {
-                sourceFrequency = 200;
+                sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "ambulance") {
             movingDot.src = "./../js/img/ambulance.png";
             if (!isFrequencyManual) {
-                sourceFrequency = 800;
+                sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "sport") {
             movingDot.src = "./../js/img/bugatti_chiron.png";
             if (!isFrequencyManual) {
-                sourceFrequency = 1000;
+                sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "jet") {
             movingDot.src = "./../js/img/jet.png";
             if (!isFrequencyManual) {
-                sourceFrequency = 3000;
+                sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "missile") {
             movingDot.src = "./../js/img/missle.png";
-            if (!isFrequencyManual) {
-                sourceFrequency = 100;
-                frequencyControl.value = sourceFrequency;
-            }
         }
 
         updateFrequencyDisplay();
@@ -344,92 +629,117 @@ function update(timestamp) {
     const waveWidthPx = 0.95 * parseFloat(getComputedStyle(document.documentElement).fontSize);
     const proximityThreshold = (waveWidthPx / (container.clientWidth || 1000)) * 100 * 5;
 
-    // Observer 1
-    if (speed < SPEED_OF_SOUND) {
-        if (
-            Math.abs(sourceX - OBSERVER1_POS) < proximityThreshold &&
-            !waves.some(
-                (w) =>
-                    Math.abs(w.xPosition - OBSERVER1_POS) < proximityThreshold && w.createdAt > timestamp / 1000 - 0.2
-            )
-        ) {
-            scheduleReflectedWave(OBSERVER1_POS, sourceX, timestamp);
-        }
-    } else if (currentType === "jet" || currentType === "missile") {
-        const machAngle = Math.asin(SPEED_OF_SOUND / speed);
-        const coneWidthPercent = CONE_WIDTH_PERCENT;
-        const edgeX = sourceX - coneWidthPercent * Math.cos(machAngle);
-        createDebugMarker(edgeX);
-        const shockThreshold = coneWidthPercent / 2;
-        const currentTime = timestamp / 1000;
-        const isConeEdgeAtObserver =
-            Math.abs(OBSERVER1_POS - edgeX) < proximityThreshold &&
-            (!lastShockwavePos1 || Math.abs(sourceX - lastShockwavePos1) > shockThreshold) &&
-            currentTime - lastShockwaveTime1 > MIN_SHOCKWAVE_INTERVAL;
-
-        if (isConeEdgeAtObserver) {
-            console.debug(
-                `Obserwator 1: edgeX=${edgeX.toFixed(2)}%, sourceX=${sourceX.toFixed(2)}%, ` +
-                    `proximityThreshold=${proximityThreshold.toFixed(2)}%, shockThreshold=${shockThreshold.toFixed(
-                        2
-                    )}%, ` +
-                    `timeSinceLast=${(currentTime - lastShockwaveTime1).toFixed(2)}s, wyzwalanie fali`
-            );
-            scheduleReflectedWave(OBSERVER1_POS, sourceX, timestamp, edgeX);
-            lastShockwavePos1 = sourceX;
-            lastShockwaveTime1 = currentTime;
-        }
-    }
-
-    // Observer 2
-    if (speed < SPEED_OF_SOUND) {
-        if (
-            Math.abs(sourceX - OBSERVER2_POS) < proximityThreshold &&
-            !waves.some(
-                (w) =>
-                    Math.abs(w.xPosition - OBSERVER2_POS) < proximityThreshold && w.createdAt > timestamp / 1000 - 0.2
-            )
-        ) {
-            scheduleReflectedWave(OBSERVER2_POS, sourceX, timestamp);
-        }
-    } else if (currentType === "jet" || currentType === "missile") {
-        const machAngle = Math.asin(SPEED_OF_SOUND / speed);
-        const coneWidthPercent = CONE_WIDTH_PERCENT;
-        const edgeX = sourceX - coneWidthPercent * Math.cos(machAngle);
-        createDebugMarker(edgeX);
-        const shockThreshold = coneWidthPercent / 2;
-        const currentTime = timestamp / 1000;
-        const isConeEdgeAtObserver =
-            Math.abs(OBSERVER2_POS - edgeX) < proximityThreshold &&
-            (!lastShockwavePos2 || Math.abs(sourceX - lastShockwavePos2) > shockThreshold) &&
-            currentTime - lastShockwaveTime2 > MIN_SHOCKWAVE_INTERVAL;
-
-        if (isConeEdgeAtObserver) {
-            console.debug(
-                `Obserwator 2: edgeX=${edgeX.toFixed(2)}%, sourceX=${sourceX.toFixed(2)}%, ` +
-                    `proximityThreshold=${proximityThreshold.toFixed(2)}%, shockThreshold=${shockThreshold.toFixed(
-                        2
-                    )}%, ` +
-                    `timeSinceLast=${(currentTime - lastShockwaveTime2).toFixed(2)}s, wyzwalanie fali`
-            );
-            scheduleReflectedWave(OBSERVER2_POS, sourceX, timestamp, edgeX);
-            lastShockwavePos2 = sourceX;
-            lastShockwaveTime2 = currentTime;
-        }
-    }
-
+    // Observer (Supersonic only)
     if (speed >= SPEED_OF_SOUND && (currentType === "jet" || currentType === "missile")) {
+        const machAngle = Math.asin(SPEED_OF_SOUND / speed);
+        const coneWidthPercent = CONE_WIDTH_PERCENT;
+        const edgeX = sourceX - coneWidthPercent * Math.cos(machAngle);
+        createDebugMarker(edgeX);
+        const shockThreshold = coneWidthPercent / 2;
+        const currentTime = timestamp / 1000;
+        const isConeEdgeAtObserver =
+            Math.abs(observerX - edgeX) < proximityThreshold &&
+            (!lastShockwavePos || Math.abs(sourceX - lastShockwavePos) > shockThreshold) &&
+            currentTime - lastShockwaveTime > MIN_SHOCKWAVE_INTERVAL;
         createMachCone(timestamp);
-    } else {
-        const existingCone = document.querySelector(".mach-cone");
-        if (existingCone) existingCone.remove();
-        lastShockwavePos1 = null;
-        lastShockwavePos2 = null;
-        lastShockwaveTime1 = 0;
-        lastShockwaveTime2 = 0;
+        updateMachConeAndLines();
+        if (isConeEdgeAtObserver) {
+            scheduleReflectedWave(observerX, sourceX, timestamp, edgeX, true);
+            lastShockwavePos = sourceX;
+            lastShockwaveTime = currentTime;
+        }
     }
 
     requestAnimationFrame(update);
+    updateMachConeAndLines();
+    updateSpeedDisplay();
+    updateEngineSound(currentType, sourceX, observerX, speed);
 }
 
-requestAnimationFrame(update);
+window.addEventListener('DOMContentLoaded', () => {
+    observer.style.left = observerX + '%';
+    // Inicjalizacja wyświetlacza
+    updateDisplays();
+
+    // Nasłuchiwanie zmian suwaków
+    speedControl.addEventListener('input', updateDisplays);
+    frequencyControl.addEventListener('input', updateDisplays);
+
+    updateSpeedDisplay();
+    updateFrequencyDisplay();
+    requestAnimationFrame(update);
+    updateEngineSound(currentType, sourceX, observerX, speed);
+
+    let isDragging = false;
+    let offsetX = 0;
+
+    movingDot.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        // Różnica między kliknięciem a środkiem obrazka
+        const rect = movingDot.getBoundingClientRect();
+        offsetX = e.clientX - (rect.left + rect.width / 2);
+        document.body.style.cursor = "grabbing";
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const containerRect = container.getBoundingClientRect();
+        // Ustal pozycję względem kontenera
+        let x = e.clientX - containerRect.left - offsetX;
+        // Ogranicz w zakresie kontenera
+        x = Math.max(0, Math.min(x, containerRect.width));
+        // Przelicz na % szerokości kontenera
+        const percent = (x / containerRect.width) * 100;
+        movingDot.style.left = percent + '%';
+        // Zaktualizuj sourceX do nowej pozycji (jeśli używasz w logice)
+        sourceX = percent;
+        clearReflectedWaves(); 
+        updateMachConeAndLines(); // żeby linie szły za dotem
+        updateSpeedDisplay();
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if (isDragging) {
+            isDragging = false;
+            document.body.style.cursor = "";
+        }
+    });
+
+    let isDraggingObserver = false;
+    let observerOffsetX = 0;
+
+    observer.addEventListener('mousedown', (e) => {
+        isDraggingObserver = true;
+        const rect = observer.getBoundingClientRect();
+        observerOffsetX = e.clientX - (rect.left + rect.width / 2);
+        document.body.style.cursor = "grabbing";
+        clearReflectedWaves(); 
+        e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDraggingObserver) {
+            const containerRect = container.getBoundingClientRect();
+            let x = e.clientX - containerRect.left - observerOffsetX;
+            x = Math.max(0, Math.min(x, containerRect.width));
+            const percent = (x / containerRect.width) * 100;
+            observer.style.left = percent + '%';
+            observerX = percent;
+            // Teraz wszystko co zależy od pozycji obserwatora
+            clearReflectedWaves(); 
+            updateMachConeAndLines();
+            updateSpeedDisplay();
+        }
+        // (stary kod dla movingDot zostaje!)
+    });
+
+    window.addEventListener('mouseup', (e) => {
+        if (isDraggingObserver) {
+            isDraggingObserver = false;
+            document.body.style.cursor = "";
+        }
+    });
+
+});
+
