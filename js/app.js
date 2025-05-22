@@ -785,3 +785,9 @@ window.addEventListener('DOMContentLoaded', () => {
     );
 });
 
+window.addEventListener('wheel', function(e) {
+    if (e.ctrlKey) {
+        e.preventDefault();
+        // Możesz tu np. wyświetlić komunikat, ale nie zatrzymasz zoomu
+    }
+}, { passive: false });
