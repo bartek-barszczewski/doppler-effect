@@ -3,7 +3,8 @@
     font-family: Arial, Helvetica, sans-serif;
 }
 
-html, body {
+html,
+body {
     padding: 0;
     margin: 0;
     overflow: hidden;
@@ -20,50 +21,122 @@ body {
     margin: 0;
 }
 
+.draggable-panel {
+    position: absolute;
+    cursor: grab;
+    z-index: 100;
+    background: #fff6;
+    box-shadow: 0 2px 10px #0003;
+    border-radius: 8px;
+    padding: 0.5em 1em;
+    min-width: 180px;
+    transition: box-shadow 0.2s;
+}
+
+.draggable-panel:active {
+    cursor: grabbing;
+    box-shadow: 0 8px 24px #0004;
+}
+
 #speedDetails {
     position: fixed;
-    top: 1rem;
-    left: 1rem;
-    background: rgba(255, 255, 255, 0.9);
+    bottom: 2%;
+    left: 1%;
+    background: rgba(255, 255, 255, 0.7);
     color: #333;
     padding: 15px;
-    border: 1px solid #333;
     border-radius: 10px;
     font-size: 16px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-    width: 26%;
+    width: 500px;
+    height: max-content;
+}
+
+.drag-handle {
+    position: absolute;
+    bottom: -1px;
+    right: -1px;
+    cursor: grab;
+    background: rgb(255, 255, 255);
+    border-bottom: 1px solid rgb(202, 202, 202);
+    padding: 5px 8px;
+    user-select: none;
+    border-radius: 8px 8px 0 0;
+    font-size: 1em;
+    font-weight: bold;
+    color: rgb(47, 47, 47);
 }
 
 #dopplerDetails {
     position: fixed;
-    bottom: 5%;
-    right: 5%;
-    background: rgba(255, 255, 255, 0.9);
+    bottom: 2%;
+    right: 1%;
+    background: rgba(255, 255, 255, 0.7);
     color: #333;
     padding: 15px;
-    border: 1px solid #333;
     border-radius: 10px;
     font-size: 16px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-    width: 480px;
+    width: 500px;
+    height: max-content;
     z-index: 10000000;
 }
 
 .controls {
     position: fixed;
-    bottom: 5rem;
-    left: 2rem;
+    top: 2%;
+    right: 1%;
     z-index: 1000;
-    width: 50%;
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    width: 500px;
+    max-width: 500px;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.controls > *, .controls label {
-    color: white !important;
+.controls>*,
+.controls label {
     font-weight: bolder;
 }
 
-.controls > input {
-    width: 860px;
+.controls>input {
+    width: 100%;
+}
+
+fieldset {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    border: none;
+}
+
+label {
+    display: block;
+    margin: 1rem 0 0.2rem 0;
+    font-weight: bold;
+}
+
+input[type="range"] {
+    width: 100%;
+    margin-bottom: 0.2rem;
+}
+
+.slider-labels {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    font-size: 0.75em;
+    color: #1a1a1a;
+    margin-bottom: 0.6rem;
 }
 
 .container {
@@ -88,7 +161,7 @@ body {
     position: absolute;
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 150px;
+    width: 175px;
     height: auto;
     z-index: 900000000000;
 }
@@ -138,6 +211,7 @@ body {
         transform: scale(0.1);
         opacity: 0.8;
     }
+
     100% {
         transform: scale(100);
         opacity: 0;
@@ -149,13 +223,15 @@ body {
         transform: scale(0.1);
         opacity: 1;
     }
+
     100% {
         transform: scale(20);
         opacity: 0;
     }
 }
 
-.scale-x, .scale-y {
+.scale-x,
+.scale-y {
     position: absolute;
     color: black;
     font-size: 12px;
@@ -209,11 +285,15 @@ body {
     position: absolute;
     top: 0;
     left: 0;
-    pointer-events: none; /* Zapobiega interferencji z innymi elementami */
+    pointer-events: none;
+    /* Zapobiega interferencji z innymi elementami */
     z-index: 1000000;
 }
 
-#shockwave_upper, #shockwave_lower {
-    stroke-width: 2; /* Grubość linii */
-    stroke: red; /* Kolor linii - możesz zmienić na inny, np. blue dla rakiety */
+#shockwave_upper,
+#shockwave_lower {
+    stroke-width: 2;
+    /* Grubość linii */
+    stroke: red;
+    /* Kolor linii - możesz zmienić na inny, np. blue dla rakiety */
 }

@@ -339,6 +339,11 @@ function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = 
     }, WAVE_LIFETIME * 1000);
 }
 
+function playSound(url) {
+    const sound = new Audio(url);
+    sound.play();
+}
+
 function scheduleReflectedWave(observerPos, wavePos, timestamp, edgeX = null, isShockwave = false) {
     let delaySeconds;
     if (isShockwave) {
@@ -445,6 +450,7 @@ function updateSpeedDisplay() {
 
         speedDisplay.textContent = speed.toFixed(2);
         speedDetails.innerHTML = `
+            <b> Główne parametry: </b><br>
             Prędkość: ${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph<br>
             Liczba Macha: ${mach.toFixed(2)}<br>
             Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
@@ -528,10 +534,10 @@ function update(timestamp) {
         movingDot.style.left = `${sourceX}%`;
     }
 
-    const isCarSpeed = speed <= 25;
-    const isAmbulance = speed > 25 && speed <= 50;
-    const isCarSport = speed > 50 && speed <= 116.7;
-    const isJet = speed > 116.7 && speed < 664;
+    const isCarSpeed = speed <= 20;
+    const isAmbulance = speed > 20 && speed <= 39;
+    const isCarSport = speed > 50 && speed <= 117;
+    const isJet = speed > 117 && speed < 664;
     const isMissile = speed >= 664;
 
     let newType = null;
@@ -590,29 +596,34 @@ function update(timestamp) {
 
         if (newType === "car") {
             movingDot.src = "./../js/img/car_yellow.png";
+            observer.src = "./../js/img/human.png";
             if (!isFrequencyManual) {
                 sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "ambulance") {
             movingDot.src = "./../js/img/ambulance.png";
+            observer.src = "./../js/img/nurse.png";
             if (!isFrequencyManual) {
                 sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "sport") {
             movingDot.src = "./../js/img/bugatti_chiron.png";
+            observer.src = "./../js/img/human.png";
             if (!isFrequencyManual) {
                 sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "jet") {
             movingDot.src = "./../js/img/jet.png";
+            observer.src = "./../js/img/human.png";
             if (!isFrequencyManual) {
                 sourceFrequency = 400;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "missile") {
+            observer.src = "./../js/img/human.png";
             movingDot.src = "./../js/img/missle.png";
         }
 
@@ -647,6 +658,7 @@ function update(timestamp) {
             scheduleReflectedWave(observerX, sourceX, timestamp, edgeX, true);
             lastShockwavePos = sourceX;
             lastShockwaveTime = currentTime;
+            playSound('./../js/sounds/shockwave.mp3');
         }
     }
 
@@ -654,6 +666,29 @@ function update(timestamp) {
     updateMachConeAndLines();
     updateSpeedDisplay();
     updateEngineSound(currentType, sourceX, observerX, speed);
+}
+
+function makePanelDraggable(panel, handle) {
+    let offsetX = 0, offsetY = 0, isDown = false;
+
+    handle.addEventListener('mousedown', function (e) {
+        isDown = true;
+        offsetX = e.clientX - panel.offsetLeft;
+        offsetY = e.clientY - panel.offsetTop;
+        document.body.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function (e) {
+        if (!isDown) return;
+        panel.style.left = (e.clientX - offsetX) + 'px';
+        panel.style.top = (e.clientY - offsetY) + 'px';
+    });
+
+    document.addEventListener('mouseup', function () {
+        isDown = false;
+        document.body.style.cursor = '';
+    });
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -741,5 +776,12 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    makePanelDraggable(document.getElementById('speedDetails'), document.getElementById('speedDetails'));
+    makePanelDraggable(document.getElementById('dopplerDetails'), document.getElementById('dopplerDetails'));
+    
+    makePanelDraggable(
+        document.getElementById('controls'),
+        document.getElementById('controls-handle')
+    );
 });
 
