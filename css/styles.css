@@ -160,7 +160,7 @@ input[type="range"] {
 .dot {
     position: absolute;
     top: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-100%, -50%);
     width: 175px;
     height: auto;
     z-index: 900000000000;
@@ -181,10 +181,23 @@ input[type="range"] {
     top: 50%;
     width: 26px;
     height: 26px;
-    background: rgba(0, 174, 255, 0.219);
+    background: rgba(0, 174, 255, 0.112);
     border: 1px solid hsla(209, 100%, 50%, 0.39);
     border-radius: 100%;
     z-index: 50;
+}
+
+
+@keyframes wave-expand {
+    0% {
+        transform: scale(0.6);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(74.5);
+        opacity: 0;
+    }
 }
 
 .wave-reflected.shockwave {
@@ -213,22 +226,11 @@ input[type="range"] {
     }
 
     100% {
-        transform: scale(100);
+        transform: scale(50);
         opacity: 0;
     }
 }
 
-@keyframes wave-expand {
-    0% {
-        transform: scale(0.1);
-        opacity: 1;
-    }
-
-    100% {
-        transform: scale(20);
-        opacity: 0;
-    }
-}
 
 .scale-x,
 .scale-y {
