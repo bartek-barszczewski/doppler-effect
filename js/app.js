@@ -18,7 +18,7 @@ const DEFAULT_FREQ_AMB = 900;
 const DEFAULT_SPEED = 25;
 
 const SPEED_OF_SOUND = 343;
-const SPEED_OF_SOUND_SIM = 1; // % per second
+const PERCENT_TO_METERS = SPEED_OF_SOUND / 100; // 1% container = 3.43 m
 const SCALE_FACTOR = 1.5;
 const WAVE_LIFETIME = 2;
 const CONE_WIDTH_PERCENT = 30;
@@ -168,10 +168,8 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // NIE DOTYKAJ freq/gain dla ambulance (robi to LFO)
     if (type !== "ambulance" && gain && osc && audioContext) {
-        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora (w %)
-        // Przelicz na “metry” – załóż, że 100% to 100 metrów (możesz zmienić skalę!)
-        const percentToMeters = 1; // Możesz zmienić skalę na 3.43, by 100% = 343 m
-        const distance = Math.abs(srcX - observerX) * percentToMeters;
+        // Odległość źródła od obserwatora w metrach
+        const distance = Math.abs(srcX - observerX) * PERCENT_TO_METERS;
 
         // Głośność maleje z kwadratem odległości
         // Przy bardzo małej odległości głośność nie powinna być nieskończona (wprowadzamy minimum)
@@ -211,9 +209,8 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // --------- AMBULANCE: dynamiczny gain! ---------
     if (type === "ambulance" && gain && audioContext) {
-        // Oblicz odległość jak dla innych pojazdów
-        const percentToMeters = 1;
-        const distance = Math.abs(srcX - observerX) * percentToMeters;
+        // Oblicz odległość jak dla innych pojazdów (w metrach)
+        const distance = Math.abs(srcX - observerX) * PERCENT_TO_METERS;
         const minDistance = 1;
         const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.06; // <= możesz zmieniać ten współczynnik
         const silenceThreshold = 20;
@@ -224,9 +221,8 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // --------- RESZTA jak było ---------
     else if (type !== "ambulance" && gain && osc && audioContext) {
-        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora (w %)
-        const percentToMeters = 1;
-        const distance = Math.abs(srcX - observerX) * percentToMeters;
+        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora w metrach
+        const distance = Math.abs(srcX - observerX) * PERCENT_TO_METERS;
         const minDistance = 1;
         const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.3;
         const silenceThreshold = 20;
@@ -321,8 +317,9 @@ function createReflectionWave(xPosition, yPosition, amplitude = 1) {
 }
 
 function schedule2DReflection(observerPosPercent, wavePosPercent, timestamp) {
-    const distancePercent = Math.abs(observerPosPercent - wavePosPercent);
-    const delaySeconds = distancePercent / SPEED_OF_SOUND_SIM;
+    const distanceMeters =
+        Math.abs(observerPosPercent - wavePosPercent) * PERCENT_TO_METERS;
+    const delaySeconds = distanceMeters / SPEED_OF_SOUND;
     const timeoutId = setTimeout(() => {
         createReflectionWave(observerPosPercent, 50, 1);
     }, delaySeconds * 1000);
@@ -439,8 +436,8 @@ function scheduleReflectedWave(observerPos, wavePos, timestamp, edgeX = null, is
     if (isShockwave) {
         delaySeconds = 0;
     } else {
-        const distancePercent = Math.abs(observerPos - wavePos);
-        delaySeconds = distancePercent / SPEED_OF_SOUND_SIM;
+        const distanceMeters = Math.abs(observerPos - wavePos) * PERCENT_TO_METERS;
+        delaySeconds = distanceMeters / SPEED_OF_SOUND;
     }
     const timeoutId = setTimeout(() => {
         createReflectedWave(observerPos, performance.now(), isShockwave, edgeX);
@@ -482,12 +479,11 @@ function updateDopplerDetails() {
     let freqObserverNum = typeof freqObserver === "number" ? freqObserver : null;
     let deltaF = freqObserverNum !== null ? freqObserverNum - sourceFrequency : null;
     let dopplerCoeff = freqObserverNum !== null ? freqObserverNum / sourceFrequency : null;
-    let distancePercent = Math.abs(observerX - sourceX);
-    let timeToObserverPercent = distancePercent / SPEED_OF_SOUND_SIM;
+    let distanceMeters = Math.abs(observerX - sourceX) * PERCENT_TO_METERS;
+    let timeToObserver = distanceMeters / SPEED_OF_SOUND;
 
-    // uproszczone przeliczenie przesunięcia fazowego (procenty, bo nie znamy metrów)
-    let phaseShift = (2 * Math.PI * (distancePercent / 100)) / (lambda > 0 ? lambda / 100 : 1);
-    let energyAtObs = 1 / Math.pow(distancePercent || 1, 2); // zapobiegamy dzieleniu przez 0
+    let phaseShift = (2 * Math.PI * distanceMeters) / (lambda > 0 ? lambda : 1);
+    let energyAtObs = 1 / Math.pow(distanceMeters || 1, 2); // zapobiegamy dzieleniu przez 0
     let isAudible = sourceFrequency >= 20 && sourceFrequency <= 20000;
     let wavefrontsPerSecond = sourceFrequency;
 
@@ -495,7 +491,7 @@ function updateDopplerDetails() {
         <b>Dodatkowe parametry:</b><br>
         Przesunięcie Dopplera Δf: ${deltaF !== null ? deltaF.toFixed(2) + " Hz" : "—"}<br>
         Współczynnik Dopplera: ${dopplerCoeff !== null ? dopplerCoeff.toFixed(3) : "—"}<br>
-        Czas dotarcia fali: ${timeToObserverPercent.toFixed(3)} s (symulacja)<br>
+        Czas dotarcia fali: ${timeToObserver.toFixed(3)} s<br>
         Przesunięcie fazowe: ${phaseShift.toFixed(2)} rad<br>
         Energia względna: ${energyAtObs.toExponential(2)}<br>
         Słyszalność: ${isAudible ? "TAK" : "NIE"}<br>
