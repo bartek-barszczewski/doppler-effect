@@ -10,6 +10,31 @@
 </head>
 
 <body>
+    <div id="control-panel" class="control-panel">
+        <button id="startBtn">START</button>
+        <button id="pauseBtn">PAUZA</button>
+        <button id="resetBtn">RESET</button>
+        <button id="show-results-btn">POKAŻ WYNIKI</button>
+    </div>
+    
+    <div id="results-modal" style="display: none;" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h2>Wyniki i wzory</h2>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>Parametr</th>
+                        <th>Wartość</th>
+                        <th>Wzór</th>
+                    </tr>
+                </thead>
+                <tbody id="results-table-body"></tbody> <!-- 🔧 to musi być -->
+            </table>
+        </div>
+    </div>
+
+    
     <div id="speedDetails" class="draggable-panel"></div>
     <div id="dopplerDetails" class="draggable-panel"></div>
     <!-- Suwaki kontrolne -->
@@ -39,9 +64,9 @@
             </fieldset>
             <div class="drag-handle" id="controls-handle">:::</div>
             <div class="note">
-                <p>* Uwaga: Aktualna częstotliwość jest dzielona przez 1000 w celu <br/>
-                    optymej ilości tworzenia się fal.<br/>
-                    W przeciwnym wypadku, w przeglądarce przycina się obraz.
+                <p> Uwaga: <br>
+                    Aktualna częstotliwość jest dzielona przez 1000 w celu <br> zoptymalizowani ilości tworzenia się fal.<br/>
+                    Przeglądarka posiada ograniczone możliwości i przy ogromnej ilości elementów (fal), może zachować się w sposób nieprzewidziany.
                 </p>
             </div>    
         </div>

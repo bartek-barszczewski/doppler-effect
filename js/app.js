@@ -49,6 +49,60 @@ let lfo = null;
 let lfoGain = null;
 let currentSoundType = null;
 let lastEngineSoundType = null;
+let isPaused = false;
+
+
+
+function showResultsModal() {
+    const kmh = speed * 3.6;
+    const mph = speed * 2.23694;
+    const mach = speed / SPEED_OF_SOUND;
+    const lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
+    const relativeVelocity = sourceX < observerX ? speed : -speed;
+    const freqObserverNum = dopplerFrequencySound(sourceFrequency, SPEED_OF_SOUND, relativeVelocity, 0);
+    const deltaF = freqObserverNum - sourceFrequency;
+    const dopplerCoeff = freqObserverNum / sourceFrequency;
+
+    const distancePercent = Math.abs(observerX - sourceX);
+    const distanceMeters = distancePercent * METERS_PER_PERCENT;
+    const timeToObserver = distanceMeters / SPEED_OF_SOUND;
+    const phaseShift = (2 * Math.PI * distanceMeters) / (lambda > 0 ? lambda : 1);
+    const energyAtObs = 1 / Math.pow(distanceMeters || 1, 2);
+    const isAudible = sourceFrequency >= 20 && sourceFrequency <= 20000;
+
+    const distanceText =
+        sourceX - observerX < 0
+            ? `PRZED obserwatorem (-${distancePercent.toFixed(2)}%)`
+            : sourceX - observerX > 0
+            ? `ZA obserwatorem (+${distancePercent.toFixed(2)}%)`
+            : "Na obserwatorze (0%)";
+
+    const rows = [
+        ["Prędkość", `${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph`, "—"],
+        ["Liczba Macha", mach.toFixed(2), "M = v / v_dźw"],
+        ["Częstotliwość źródła", `${sourceFrequency.toFixed(1)} Hz`, "Dana"],
+        ["Długość fali", `${lambda.toFixed(2)} m`, "λ = v_dźw / f₀"],
+        ["Częstotliwość obserwatora", `${freqObserverNum.toFixed(1)} Hz`, "f' = f₀ · v_dźw / (v_dźw - v)"],
+        ["Kąt stożka Macha", mach < 1 ? "—" : `asin(1/M)`, "sin(θ) = v_dźw / v (dla M > 1)"],
+        ["Odległość od obserwatora", distanceText, "Δx = x₀ - x_obs"],
+        ["Δf (Przesunięcie Dopplera)", `${deltaF.toFixed(2)} Hz`, "Δf = f' - f₀"],
+        ["Współczynnik Dopplera", dopplerCoeff.toFixed(3), "f' / f₀"],
+        ["Czas dotarcia fali", `${timeToObserver.toFixed(3)} s`, "t = d / v_dźw"],
+        ["Przesunięcie fazowe", `${phaseShift.toFixed(2)} rad`, "Δφ = 2π · d / λ"],
+        ["Energia względna", energyAtObs.toExponential(2), "E ∝ 1 / d²"],
+        ["Słyszalność", isAudible ? "TAK" : "NIE", "f₀ ∈ [20, 20000] Hz"],
+    ];
+
+    const tbody = document.getElementById("results-table-body");
+    tbody.innerHTML = "";
+    rows.forEach(([param, value, formula]) => {
+        const row = document.createElement("tr");
+        row.innerHTML = `<td>${param}</td><td>${value}</td><td>${formula}</td>`;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById("results-modal").style.display = "flex";
+}
 
 function startAmbulanceSiren() {
     stopAmbulanceSiren();
@@ -521,7 +575,6 @@ function updateDopplerDetails() {
         Przesunięcie fazowe: ${phaseShift.toFixed(2)} rad<br>
         Energia względna: ${energyAtObs.toExponential(2)}<br>
         Słyszalność: ${isAudible ? "TAK" : "NIE"}<br>
-        Liczba frontów na sekundę: ${wavefrontsPerSecond.toFixed(0)}
     `;
 }
 
@@ -565,7 +618,7 @@ function updateSpeedDisplay() {
             Liczba Macha: ${mach.toFixed(2)}<br>
             Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
             Długość fali: ${lambda.toFixed(2)} m<br>
-            Częstotliwość obserwatora (x=${observerX}%): ${
+            Częstotliwość obserwatora (x=${observerX.toFixed(3)}%): ${
             typeof freqObserver === "number" ? freqObserver.toFixed(1) + " Hz" : freqObserver
         }<br>
             Kąt stożka Macha: ${
@@ -636,6 +689,8 @@ function createDebugMarker(xPosition) {
 }
 
 function update(timestamp) {
+    if (isPaused) return; 
+
     const deltaTime = 0.016;
     sourceX += (speed / SPEED_OF_SOUND) * deltaTime * 10 * SCALE_FACTOR;
     if (sourceX > 100) {
@@ -688,7 +743,7 @@ function update(timestamp) {
         document.body.style.backgroundPosition = "0px 180px";
         document.body.style.backgroundColor = "rgb(193, 255, 244)";
         newType = "jet";
-        observer.style.top = "75.5%";
+        observer.style.top = "72%";
         observer.style.height = "35px";
     } else if (isMissile) {
         document.body.style.backgroundImage = "url('./../js/img/sky.jpg')";
@@ -696,7 +751,7 @@ function update(timestamp) {
         document.body.style.backgroundPosition = "0px 180px";
         document.body.style.backgroundColor = "rgb(193, 255, 244)";
         newType = "missile";
-        observer.style.top = "75.5%";
+        observer.style.top = "72%";
         observer.style.height = "35px";
     }
 
@@ -815,6 +870,22 @@ function makePanelDraggable(panel, handle) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
+
+    document.getElementById("startBtn").addEventListener("click", () => {
+        if (isPaused) {
+            isPaused = false;
+            requestAnimationFrame(update);
+        }
+    });
+
+    document.getElementById("pauseBtn").addEventListener("click", () => {
+        isPaused = true;
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+        location.reload();
+    });
+
     observer.style.left = observerX + "%";
     // Inicjalizacja wyświetlacza
     updateDisplays();
@@ -903,6 +974,13 @@ window.addEventListener("DOMContentLoaded", () => {
     makePanelDraggable(document.getElementById("dopplerDetails"), document.getElementById("dopplerDetails"));
 
     makePanelDraggable(document.getElementById("controls"), document.getElementById("controls-handle"));
+    const tbody = document.getElementById("results-table-body");
+
+    document.getElementById("show-results-btn").addEventListener("click", showResultsModal);
+    window.addEventListener("click", (e) => {
+        const modal = document.getElementById("results-modal");
+        if (e.target === modal) modal.style.display = "none";
+    });
 });
 
 window.addEventListener(

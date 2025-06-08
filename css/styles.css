@@ -13,12 +13,17 @@ body {
 }
 
 body {
-    display: flex;
     width: 100%;
-    justify-content: center;
-    align-items: center;
     height: 100vh;
     margin: 0;
+    padding: 0;
+}
+
+.control-panel {
+    position: fixed;
+    top: 2rem;
+    left: 2rem;
+    z-index: 1000000000000;
 }
 
 .draggable-panel {
@@ -175,7 +180,7 @@ input[type="range"] {
     transform: translate(-150%, -50%);
     width: 200px;
     height: auto;
-    z-index: 900000000000;
+    z-index: 900000000;
 }
 
 .observer {
@@ -311,3 +316,37 @@ input[type="range"] {
     stroke: red;
     /* Kolor linii - możesz zmienić na inny, np. blue dla rakiety */
 }
+
+.modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999999999999999999999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-content {
+    
+    background: white;
+    padding: 20px;
+    width: 90%;
+    max-width: 800px;
+    border-radius: 8px;
+    overflow: auto;
+    max-height: 90%;
+  }
+  .close-btn {
+    float: right;
+    font-size: 24px;
+    cursor: pointer;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th, td {
+    padding: 8px;
+    border: 1px solid #ccc;
+  }
