@@ -3,8 +3,39 @@
 // Efekt Dopplera i zjawisko stożka macha -->
 // Semestr drugi -->
 // Fizyka -->
+const dopplerFrequencySound = (fz, v, vz, vo) => {
+    const denom = v - vz;
+    if (Math.abs(vz) >= v) {
+        return fz * ((v + vo) / Math.abs(denom));
+    }
+    return fz * ((v + vo) / denom);
+};
 
-import {dopplerFrequencySound, countWaveLength} from "./utils/formulas.js";
+// Długość fali
+const countWaveLength = (fz, v) => {
+    return v / fz;
+};
+
+// Prędkość źródła
+const velocitySource = (fz, fo, v) => {
+    return v * (1 - fz / fo);
+};
+
+// Prędkość obserwatora
+const velocityObserver = (fz, fo, v) => {
+    return v * (fo / fz - 1);
+};
+
+// Przesunięcie ku czerwieni
+const redshift = (fz, fo) => {
+    return (fo - fz) / fz;
+};
+
+// Przesunięcie ku błękitowi
+const blueshift = (fz, fo) => {
+    return (fz - fo) / fz;
+};
+
 
 const movingDot = document.getElementById("movingDot");
 const container = document.querySelector(".container");
