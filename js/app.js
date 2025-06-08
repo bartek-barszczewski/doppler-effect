@@ -18,7 +18,9 @@ const DEFAULT_FREQ_AMB = 900;
 const DEFAULT_SPEED = 25;
 
 const SPEED_OF_SOUND = 343;
-const PERCENT_TO_METERS = SPEED_OF_SOUND / 100; // 1% container = 3.43 m
+const METERS_PER_PERCENT = 3.43;
+const SPEED_OF_SOUND_SIM = SPEED_OF_SOUND / METERS_PER_PERCENT; // % per second
+
 const SCALE_FACTOR = 1.5;
 const WAVE_LIFETIME = 2;
 const CONE_WIDTH_PERCENT = 30;
@@ -168,8 +170,9 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // NIE DOTYKAJ freq/gain dla ambulance (robi to LFO)
     if (type !== "ambulance" && gain && osc && audioContext) {
-        // Odległość źródła od obserwatora w metrach
-        const distance = Math.abs(srcX - observerX) * PERCENT_TO_METERS;
+        const percentToMeters = METERS_PER_PERCENT;
+        const distance = Math.abs(srcX - observerX) * percentToMeters;
+
 
         // Głośność maleje z kwadratem odległości
         // Przy bardzo małej odległości głośność nie powinna być nieskończona (wprowadzamy minimum)
@@ -214,8 +217,10 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // --------- AMBULANCE: dynamiczny gain! ---------
     if (type === "ambulance" && gain && audioContext) {
-        // Oblicz odległość jak dla innych pojazdów (w metrach)
-        const distance = Math.abs(srcX - observerX) * PERCENT_TO_METERS;
+        // Oblicz odległość jak dla innych pojazdów
+        const percentToMeters = METERS_PER_PERCENT;
+        const distance = Math.abs(srcX - observerX) * percentToMeters;
+
         const minDistance = 1;
         const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.06; // <= możesz zmieniać ten współczynnik
         const silenceThreshold = 20;
@@ -226,8 +231,10 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // --------- RESZTA jak było ---------
     else if (type !== "ambulance" && gain && osc && audioContext) {
-        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora w metrach
-        const distance = Math.abs(srcX - observerX) * PERCENT_TO_METERS;
+        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora (w %)
+        const percentToMeters = METERS_PER_PERCENT;
+        const distance = Math.abs(srcX - observerX) * percentToMeters;
+
         const minDistance = 1;
         const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.3;
         const silenceThreshold = 20;
@@ -490,6 +497,10 @@ function updateDopplerDetails() {
     let deltaF = freqObserverNum !== null ? freqObserverNum - sourceFrequency : null;
     let dopplerCoeff = freqObserverNum !== null ? freqObserverNum / sourceFrequency : null;
     let distancePercent = Math.abs(observerX - sourceX);
+
+    let distanceMeters = distancePercent * METERS_PER_PERCENT;
+    let timeToObserver = distanceMeters / SPEED_OF_SOUND;
+
     let timeToObserverPercent;
     if (speed < SPEED_OF_SOUND) {
         timeToObserverPercent = distancePercent / SPEED_OF_SOUND_SIM;

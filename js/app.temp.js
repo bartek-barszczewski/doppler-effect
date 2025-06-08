@@ -28,7 +28,9 @@ const DEFAULT_FREQ_AMB = 900; // Domyślna częstotliwość syreny
 const DEFAULT_SPEED = 25; // Domyślna prędkość źródła dźwięku
 
 const SPEED_OF_SOUND = 343; // Prędkość dźwięku w powietrzu (m/s)
-const SPEED_OF_SOUND_SIM = 0.5; // Symulowana prędkość dźwięku (w % na sekundę)
+// 100% szerokości kontenera = 343 m (1% = 3.43 m)
+const METERS_PER_PERCENT = 3.43;
+const SPEED_OF_SOUND_SIM = SPEED_OF_SOUND / METERS_PER_PERCENT; // % na sekundę
 const SCALE_FACTOR = 1.5; // Skalowanie interfejsu graficznego
 const WAVE_LIFETIME = 1; // Czas życia jednej fali dźwiękowej (w sekundach)
 const CONE_WIDTH_PERCENT = 30; // Szerokość stożka fali uderzeniowej (w %)
@@ -207,7 +209,7 @@ function updateEngineSound(type, srcX, observerX, v) {
     // Nie zmieniamy częstotliwości ani gain dla syreny ambulansu (robi to LFO)
     if (type !== "ambulance" && gain && osc && audioContext) {
         // Oblicz dystans między źródłem a obserwatorem (w procentach kontenera)
-        const percentToMeters = 1; // Przelicznik: 100% = 100 m
+        const percentToMeters = METERS_PER_PERCENT; // 100% = 343 m
         // ======================
         // distance musi musi być taki by 
         // dźwięk fali odtwarzał się wcześniej bo fala ma pewien rozmiar
@@ -265,7 +267,7 @@ function updateEngineSound(type, srcX, observerX, v) {
     // --- SPECJALNE ZACHOWANIE DLA SYRENY AMBULANSU ---
     if (type === "ambulance" && gain && audioContext) {
         // Oblicz odległość do obserwatora
-        const percentToMeters = 1;
+        const percentToMeters = METERS_PER_PERCENT;
         // ========================
         const distance = Math.abs(srcX - observerX) * percentToMeters; // // TUTAJ BY SIĘ JESZCZE PRZYDAŁA POPRAWKA ROZMIARU EMITOWANEJ FALI
         // ========================
@@ -281,7 +283,7 @@ function updateEngineSound(type, srcX, observerX, v) {
     }
     // --- NORMALNE ZACHOWANIE DLA POZOSTAŁYCH TYPÓW ---
     else if (type !== "ambulance" && gain && osc && audioContext) {
-        const percentToMeters = 1;
+        const percentToMeters = METERS_PER_PERCENT;
         // ========================
         const distance = Math.abs(srcX - observerX) * percentToMeters; // // TUTAJ BY SIĘ JESZCZE PRZYDAŁA POPRAWKA ROZMIARU EMITOWANEJ FALI
         // ========================
