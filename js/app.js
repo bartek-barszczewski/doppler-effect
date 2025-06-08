@@ -477,13 +477,19 @@ frequencyControl.addEventListener("input", () => {
 });
 
 function updateDopplerDetails() {
-    // freqObserver może być "N/A (naddźwiękowe)", sprawdzamy typ
+    // freqObserver jest liczbowy również dla prędkości naddźwiękowych
     let lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
     let freqObserverNum = typeof freqObserver === "number" ? freqObserver : null;
     let deltaF = freqObserverNum !== null ? freqObserverNum - sourceFrequency : null;
     let dopplerCoeff = freqObserverNum !== null ? freqObserverNum / sourceFrequency : null;
     let distancePercent = Math.abs(observerX - sourceX);
-    let timeToObserverPercent = distancePercent / SPEED_OF_SOUND_SIM;
+    let timeToObserverPercent;
+    if (speed < SPEED_OF_SOUND) {
+        timeToObserverPercent = distancePercent / SPEED_OF_SOUND_SIM;
+    } else {
+        const speedSim = (speed / SPEED_OF_SOUND) * SPEED_OF_SOUND_SIM;
+        timeToObserverPercent = distancePercent / Math.max(speedSim - SPEED_OF_SOUND_SIM, 0.001);
+    }
 
     // uproszczone przeliczenie przesunięcia fazowego (procenty, bo nie znamy metrów)
     let phaseShift = (2 * Math.PI * (distancePercent / 100)) / (lambda > 0 ? lambda / 100 : 1);
@@ -510,18 +516,16 @@ function updateSpeedDisplay() {
     try {
         lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
         const mach = speed / SPEED_OF_SOUND;
+        freqObserver = dopplerFrequencySound(
+            sourceFrequency,
+            SPEED_OF_SOUND,
+            sourceX < observerX ? speed : -speed,
+            0
+        );
         if (speed < SPEED_OF_SOUND) {
-            freqObserver = dopplerFrequencySound(
-                sourceFrequency,
-                SPEED_OF_SOUND,
-                sourceX < observerX ? speed : -speed,
-                0
-            );
             machAngleDeg = "-";
             machAngleRad = "-";
         } else {
-            freqObserver = "N/A (naddźwiękowe)";
-            // Kąt stożka Macha tylko dla V > c
             const theta = Math.asin(SPEED_OF_SOUND / speed); // radiany
             machAngleRad = theta;
             machAngleDeg = theta * (180 / Math.PI);

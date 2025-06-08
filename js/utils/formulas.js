@@ -2,8 +2,11 @@
 
 // Efekt Dopplera dla dźwięku
 export const dopplerFrequencySound = (fz, v, vz, vo) => {
-    if (Math.abs(vz) >= v) return NaN; // Handle supersonic case
-    return fz * ((v + vo) / (v - vz));
+    const denom = v - vz;
+    if (Math.abs(vz) >= v) {
+        return fz * ((v + vo) / Math.abs(denom));
+    }
+    return fz * ((v + vo) / denom);
 };
 
 // Długość fali
