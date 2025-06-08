@@ -82,6 +82,10 @@ body {
     z-index: 10000000;
 }
 
+.controls-container {
+
+}
+
 .controls {
     position: fixed;
     top: 2%;
@@ -96,6 +100,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+}
+
+.note {
+    width: 100%;
+    font-weight: normal !important;
+    font-size: 0.8rem;
+    text-align: left !important;
 }
 
 .controls>*,
@@ -160,8 +172,8 @@ input[type="range"] {
 .dot {
     position: absolute;
     top: 50%;
-    transform: translate(-100%, -50%);
-    width: 175px;
+    transform: translate(-150%, -50%);
+    width: 200px;
     height: auto;
     z-index: 900000000000;
 }
@@ -179,12 +191,12 @@ input[type="range"] {
 .wave {
     position: absolute;
     top: 50%;
-    width: 26px;
-    height: 26px;
-    background: rgba(0, 174, 255, 0.112);
-    border: 1px solid hsla(209, 100%, 50%, 0.39);
+    width: 43px;
+    height: 43px;
+    background: rgba(0, 213, 255, 0.256);
+    border: 0px solid hsla(192, 100%, 50%, 0.39);
     border-radius: 100%;
-    z-index: 50;
+    z-index: -1;
 }
 
 

@@ -14,7 +14,6 @@ const observer = document.getElementById("observer1");
 
 // Constants
 const DEFAULT_FREQ = 400;
-const DEFAULT_FREQ_AMB = 900;
 const DEFAULT_SPEED = 25;
 
 const SPEED_OF_SOUND = 343;
@@ -25,7 +24,7 @@ const SCALE_FACTOR = 1.5;
 const WAVE_LIFETIME = 2;
 const CONE_WIDTH_PERCENT = 30;
 const MIN_SHOCKWAVE_INTERVAL = 5;
-const FREQUENCY_SCALE_FACTOR = 50;
+const FREQUENCY_SCALE_FACTOR = 1000;
 
 // State variables
 let observerX = 50; // Jedyny obserwator na pozycji 50%
@@ -335,7 +334,7 @@ function createReflectionWave(xPosition, yPosition, amplitude = 1) {
 
 function schedule2DReflection(observerPosPercent, wavePosPercent, timestamp) {
     const distanceMeters =
-        Math.abs(observerPosPercent - wavePosPercent) * PERCENT_TO_METERS;
+        Math.abs(observerPosPercent - wavePosPercent) * METERS_PER_PERCENT;
     const delaySeconds = distanceMeters / SPEED_OF_SOUND;
     const timeoutId = setTimeout(() => {
         createReflectionWave(observerPosPercent, 50, 1);
@@ -345,7 +344,14 @@ function schedule2DReflection(observerPosPercent, wavePosPercent, timestamp) {
     reflection2DTimeouts.push(timeoutId);
 }
 
+// WSTAW W FUNKCJI createWave – NA JEJ POCZĄTKU
 function createWave(xPosition, timestamp) {
+    // 🔒 LIMIT LICZBY FAL
+    if (waves.length > 1000) {
+        const oldest = waves.shift();
+        if (oldest && oldest.element) oldest.element.remove();
+    }
+
     const wave = document.createElement("div");
     wave.classList.add("wave");
     wave.style.left = `${xPosition}%`;
@@ -366,23 +372,11 @@ function createWave(xPosition, timestamp) {
     wave.style.animation = `wave-expand ${WAVE_LIFETIME}s linear forwards`;
     let finalScale;
     switch (currentType) {
-        case "car":
-            finalScale = 30;
-            break;
-        case "ambulance":
-            finalScale = 40;
-            break;
-        case "sport":
-            finalScale = 50;
-            break;
-        case "jet":
-            finalScale = 60;
-            break;
-        case "missile":
-            finalScale = 60;
-            break;
-        default:
-            finalScale = 30;
+        case "car": finalScale = 30; break;
+        case "ambulance": finalScale = 40; break;
+        case "sport": finalScale = 50; break;
+        case "jet": case "missile": finalScale = 60; break;
+        default: finalScale = 30;
     }
 
     wave.animate(
@@ -408,12 +402,17 @@ function createWave(xPosition, timestamp) {
         waves = waves.filter((w) => w.element !== wave);
     }, WAVE_LIFETIME * 1000);
 
-    // Schedule reflections for subsonic speeds
     if (speed < SPEED_OF_SOUND) {
-        schedule2DReflection(observerX, xPosition, timestamp);
-        scheduleReflectedWave(observerX, xPosition, timestamp, null, false);
+        const distanceMeters = Math.abs(observerX - xPosition) * METERS_PER_PERCENT;
+        const timeToObserver = distanceMeters / SPEED_OF_SOUND;
+
+        if (timeToObserver <= WAVE_LIFETIME * 0.15) {
+            schedule2DReflection(observerX, xPosition, timestamp);
+            scheduleReflectedWave(observerX, xPosition, timestamp, null, false);
+        }
     }
 }
+
 
 function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = null) {
     const wave = document.createElement("div");
@@ -453,7 +452,7 @@ function scheduleReflectedWave(observerPos, wavePos, timestamp, edgeX = null, is
     if (isShockwave) {
         delaySeconds = 0;
     } else {
-        const distanceMeters = Math.abs(observerPos - wavePos) * PERCENT_TO_METERS;
+        const distanceMeters = Math.abs(observerPos - wavePos) * METERS_PER_PERCENT;
         delaySeconds = distanceMeters / SPEED_OF_SOUND;
     }
     const timeoutId = setTimeout(() => {
@@ -710,7 +709,7 @@ function update(timestamp) {
             movingDot.style.transform = `translate(-50%, -50%)`;
 
             if (!isFrequencyManual) {
-                sourceFrequency = 400;
+                sourceFrequency = 2500;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "ambulance") {
@@ -718,7 +717,7 @@ function update(timestamp) {
             observer.src = "./../js/img/nurse.png";
             movingDot.style.transform = `translate(-50%, -50%)`;
             if (!isFrequencyManual) {
-                sourceFrequency = 400;
+                sourceFrequency = 2500;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "sport") {
@@ -726,7 +725,7 @@ function update(timestamp) {
             observer.src = "./../js/img/human.png";
             movingDot.style.transform = `translate(-75%, -50%)`;
             if (!isFrequencyManual) {
-                sourceFrequency = 400;
+                sourceFrequency = 3500;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "jet") {
@@ -735,7 +734,7 @@ function update(timestamp) {
             movingDot.style.transform = `translate(-100%, -50%)`;
 
             if (!isFrequencyManual) {
-                sourceFrequency = 400;
+                sourceFrequency = 4500;
                 frequencyControl.value = sourceFrequency;
             }
         } else if (newType === "missile") {
@@ -774,6 +773,8 @@ function update(timestamp) {
             currentTime - lastShockwaveTime > MIN_SHOCKWAVE_INTERVAL;
         createMachCone(timestamp);
         updateMachConeAndLines();
+
+
         if (isConeEdgeAtObserver) {
             scheduleReflectedWave(observerX, sourceX, timestamp, edgeX, true);
             lastShockwavePos = sourceX;

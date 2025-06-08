@@ -13,30 +13,39 @@
     <div id="speedDetails" class="draggable-panel"></div>
     <div id="dopplerDetails" class="draggable-panel"></div>
     <!-- Suwaki kontrolne -->
-    <div class="controls" id="controls">
-        <div class="drag-handle" id="controls-handle">:::</div>
-        <fieldset>
-            <legend>Parametry źródła dźwięku</legend>
+    <div class="controls-container">
+        <div class="controls" id="controls">
+            <fieldset>
+                <legend>Parametry źródła dźwięku</legend>
 
-            <label for="speedControl">
-                Prędkość źródła V [m/s]:
-                <span id="speedDisplay">343</span>
-            </label>
-            <div class="slider-labels">
-                <span>Min 1</span>
-                <input type="range" id="speedControl" min="1" max="8000" step="1" value="20">
-                <span>Max 8000</span>
-            </div>
+                <label for="speedControl">
+                    Prędkość źródła V [m/s]:
+                    <span id="speedDisplay">343</span>
+                </label>
+                <div class="slider-labels">
+                    <span>Min 1</span>
+                    <input type="range" id="speedControl" min="1" max="8000" step="1" value="20">
+                    <span>Max 8000</span>
+                </div>
 
-            <label for="frequencyControl">
-                Częstotliwość fali [Hz]:
-                <span id="frequencyDisplay"></span>
-            </label>
-            <div class="slider-labels">
-                <span>Min 20</span> <input type="range" id="frequencyControl" min="20" max="20000" step="1" value="400">
-                <span>Max 20_000</span>
-            </div>
-        </fieldset>
+                <label for="frequencyControl">
+                    Częstotliwość fali [Hz]:
+                    <span id="frequencyDisplay"></span>
+                </label>
+                <div class="slider-labels">
+                    <span>Min 20</span> <input type="range" id="frequencyControl" min="20" max="20000" step="1" value="2500">
+                    <span>Max 20_000</span>
+                </div>
+            </fieldset>
+            <div class="drag-handle" id="controls-handle">:::</div>
+            <div class="note">
+                <p>* Uwaga: Aktualna częstotliwość jest dzielona przez 1000 w celu <br/>
+                    optymej ilości tworzenia się fal.<br/>
+                    W przeciwnym wypadku, w przeglądarce przycina się obraz.
+                </p>
+            </div>    
+        </div>
+       
     </div>
 
     <div class="container">
