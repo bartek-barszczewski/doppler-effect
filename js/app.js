@@ -193,10 +193,15 @@ function updateEngineSound(type, srcX, observerX, v) {
         }
         let freq = base + scale * v;
         freq = Math.max(low, Math.min(freq, high));
-        if (srcX < observerX) freq *= 1.03;
-        else if (srcX > observerX) freq *= 0.97;
+        const relativeVelocity = srcX < observerX ? v : -v;
+        const dopplerFreq = dopplerFrequencySound(
+            freq,
+            SPEED_OF_SOUND,
+            relativeVelocity,
+            0
+        );
         gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
-        osc.frequency.linearRampToValueAtTime(freq, audioContext.currentTime + 0.02);
+        osc.frequency.linearRampToValueAtTime(dopplerFreq, audioContext.currentTime + 0.02);
     }
 
     if (type !== lastEngineSoundType) {
@@ -241,10 +246,15 @@ function updateEngineSound(type, srcX, observerX, v) {
         }
         let freq = base + scale * v;
         freq = Math.max(low, Math.min(freq, high));
-        if (srcX < observerX) freq *= 1.03;
-        else if (srcX > observerX) freq *= 0.97;
+        const relativeVelocity = srcX < observerX ? v : -v;
+        const dopplerFreq = dopplerFrequencySound(
+            freq,
+            SPEED_OF_SOUND,
+            relativeVelocity,
+            0
+        );
         gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
-        osc.frequency.linearRampToValueAtTime(freq, audioContext.currentTime + 0.02);
+        osc.frequency.linearRampToValueAtTime(dopplerFreq, audioContext.currentTime + 0.02);
     }
 }
 
