@@ -1,3 +1,9 @@
+// Bartłomiej Barszczewski -->
+// Symulacja zjawiska fizycznego -->
+// Efekt Dopplera i zjawisko stożka macha -->
+// Semestr drugi -->
+// Fizyka -->
+
 // Funkcje matematyczne dla efektu Dopplera
 
 // Efekt Dopplera dla dźwięku

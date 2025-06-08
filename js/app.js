@@ -1,3 +1,9 @@
+// Bartłomiej Barszczewski -->
+// Symulacja zjawiska fizycznego -->
+// Efekt Dopplera i zjawisko stożka macha -->
+// Semestr drugi -->
+// Fizyka -->
+
 import {dopplerFrequencySound, countWaveLength} from "./utils/formulas.js";
 
 const movingDot = document.getElementById("movingDot");
