@@ -1,6 +1,5 @@
 import {dopplerFrequencySound, countWaveLength} from "./utils/formulas.js";
 
-// DOM elements
 const movingDot = document.getElementById("movingDot");
 const container = document.querySelector(".container");
 const speedControl = document.getElementById("speedControl");
@@ -12,13 +11,12 @@ const shockwaveUpper = document.getElementById("shockwave_upper");
 const shockwaveLower = document.getElementById("shockwave_lower");
 const observer = document.getElementById("observer1");
 
-// Constants
 const DEFAULT_FREQ = 400;
 const DEFAULT_SPEED = 25;
 
 const SPEED_OF_SOUND = 343;
 const METERS_PER_PERCENT = 3.43;
-const SPEED_OF_SOUND_SIM = SPEED_OF_SOUND / METERS_PER_PERCENT; // % per second
+const SPEED_OF_SOUND_SIM = SPEED_OF_SOUND / METERS_PER_PERCENT;
 
 const SCALE_FACTOR = 1.5;
 const WAVE_LIFETIME = 2;
@@ -26,8 +24,7 @@ const CONE_WIDTH_PERCENT = 30;
 const MIN_SHOCKWAVE_INTERVAL = 5;
 const FREQUENCY_SCALE_FACTOR = 1000;
 
-// State variables
-let observerX = 50; // Jedyny obserwator na pozycji 50%
+let observerX = 50;
 let sourceX = 50;
 let speed = parseFloat(speedControl.value) || DEFAULT_SPEED;
 let sourceFrequency = parseFloat(frequencyControl.value / 100) || DEFAULT_FREQ;
@@ -41,7 +38,7 @@ let freqObserver = null;
 let reflectedWaveTimeouts = [];
 let reflection2DTimeouts = [];
 
-const c = 343; // Prędkość dźwięku w m/s
+const c = 343;
 let audioContext = null;
 let osc = null;
 let gain = null;
@@ -51,9 +48,27 @@ let currentSoundType = null;
 let lastEngineSoundType = null;
 let isPaused = false;
 
-
-
 function showResultsModal() {
+    if (!isPaused) {
+        const pauseBtn = document.getElementById("pauseBtn");
+        const flashColor = (bg, color, delay) => {
+            setTimeout(() => {
+                pauseBtn.style.backgroundColor = bg;
+                pauseBtn.style.color = color;
+            }, delay);
+        };
+
+        flashColor("red", "white", 0); 
+        flashColor("#f0f0f0", "black", 300); 
+        flashColor("red", "white", 600); 
+        flashColor("#f0f0f0", "black", 900); 
+        flashColor("red", "white", 1500); 
+        flashColor("#f0f0f0", "black", 1800); 
+        flashColor("red", "white", 2100); 
+        flashColor("#f0f0f0", "black", 2400); 
+        return; 
+    }
+
     const kmh = speed * 3.6;
     const mph = speed * 2.23694;
     const mach = speed / SPEED_OF_SOUND;
@@ -112,9 +127,9 @@ function startAmbulanceSiren() {
     osc.frequency.value = 700;
     lfo = audioContext.createOscillator();
     lfo.type = "triangle";
-    lfo.frequency.value = 5; // <<< PRZYSPIESZENIE SYRENY
+    lfo.frequency.value = 5;
     lfoGain = audioContext.createGain();
-    lfoGain.gain.value = 250; // Szerokość wahnięcia (więcej = ostrzejszy efekt)
+    lfoGain.gain.value = 250;
     lfo.connect(lfoGain);
     lfoGain.connect(osc.frequency);
     gain = audioContext.createGain();
@@ -212,7 +227,6 @@ function stopEngineSound() {
 }
 
 function updateEngineSound(type, srcX, observerX, v) {
-    // Uruchamiaj/zmieniaj tylko jeśli typ się zmienił!
     if (type !== lastEngineSoundType) {
         startEngineSound(type);
         lastEngineSoundType = type;
@@ -221,17 +235,14 @@ function updateEngineSound(type, srcX, observerX, v) {
         stopEngineSound();
         return;
     }
-    // NIE DOTYKAJ freq/gain dla ambulance (robi to LFO)
+
     if (type !== "ambulance" && gain && osc && audioContext) {
         const percentToMeters = METERS_PER_PERCENT;
         const distance = Math.abs(srcX - observerX) * percentToMeters;
 
-
-        // Głośność maleje z kwadratem odległości
-        // Przy bardzo małej odległości głośność nie powinna być nieskończona (wprowadzamy minimum)
-        const minDistance = 1; // 1 metr minimum (nie pozwala na “inf”)
+        const minDistance = 1;
         const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.3;
-        // Jeżeli źródło jest bardzo daleko (np. >20m) – wycisz całkowicie
+
         const silenceThreshold = 20;
         let appliedVolume = distance > silenceThreshold ? 0 : volume;
 
@@ -250,12 +261,7 @@ function updateEngineSound(type, srcX, observerX, v) {
         let freq = base + scale * v;
         freq = Math.max(low, Math.min(freq, high));
         const relativeVelocity = srcX < observerX ? v : -v;
-        const dopplerFreq = dopplerFrequencySound(
-            freq,
-            SPEED_OF_SOUND,
-            relativeVelocity,
-            0
-        );
+        const dopplerFreq = dopplerFrequencySound(freq, SPEED_OF_SOUND, relativeVelocity, 0);
         gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
         osc.frequency.linearRampToValueAtTime(dopplerFreq, audioContext.currentTime + 0.02);
     }
@@ -268,23 +274,18 @@ function updateEngineSound(type, srcX, observerX, v) {
         stopEngineSound();
         return;
     }
-    // --------- AMBULANCE: dynamiczny gain! ---------
+
     if (type === "ambulance" && gain && audioContext) {
-        // Oblicz odległość jak dla innych pojazdów
         const percentToMeters = METERS_PER_PERCENT;
         const distance = Math.abs(srcX - observerX) * percentToMeters;
 
         const minDistance = 1;
-        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.06; // <= możesz zmieniać ten współczynnik
+        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.06;
         const silenceThreshold = 20;
         let appliedVolume = distance > silenceThreshold ? 0 : volume;
-        // ANIMUJ głośność (łagodnie)
+
         gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.03);
-        // UWAGA: nie dotykaj częstotliwości ambulansu! (robi to LFO)
-    }
-    // --------- RESZTA jak było ---------
-    else if (type !== "ambulance" && gain && osc && audioContext) {
-        // OBLICZENIA FIZYCZNE: odległość źródła od obserwatora (w %)
+    } else if (type !== "ambulance" && gain && osc && audioContext) {
         const percentToMeters = METERS_PER_PERCENT;
         const distance = Math.abs(srcX - observerX) * percentToMeters;
 
@@ -307,41 +308,31 @@ function updateEngineSound(type, srcX, observerX, v) {
         let freq = base + scale * v;
         freq = Math.max(low, Math.min(freq, high));
         const relativeVelocity = srcX < observerX ? v : -v;
-        const dopplerFreq = dopplerFrequencySound(
-            freq,
-            SPEED_OF_SOUND,
-            relativeVelocity,
-            0
-        );
+        const dopplerFreq = dopplerFrequencySound(freq, SPEED_OF_SOUND, relativeVelocity, 0);
         gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
         osc.frequency.linearRampToValueAtTime(dopplerFreq, audioContext.currentTime + 0.02);
     }
 }
 
-// Funkcja aktualizująca wyświetlacz prędkości i częstotliwości
 function updateDisplays() {
     speedDisplay.textContent = speedControl.value;
     frequencyDisplay.textContent = frequencyControl.value;
 }
 
 function updateMachConeAndLines() {
-    // Pobierz pozycję kropki w pikselach względem kontenera
     const rect = movingDot.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     const dotX = rect.left - containerRect.left + rect.width / 2;
     const dotY = rect.top - containerRect.top + rect.height / 2;
 
-    // Pobierz aktualną prędkość źródła z suwaka
     const V = parseFloat(speedControl.value);
     const c = SPEED_OF_SOUND;
 
     if (V > c) {
-        // Oblicz Mach angle
         const M = V / c;
         const theta = Math.asin(1 / M);
         const tanTheta = Math.tan(theta);
 
-        // Oblicz końce linii
         const y2_upper = dotY + tanTheta * dotX;
         const y2_lower = dotY - tanTheta * dotX;
 
@@ -387,20 +378,16 @@ function createReflectionWave(xPosition, yPosition, amplitude = 1) {
 }
 
 function schedule2DReflection(observerPosPercent, wavePosPercent, timestamp) {
-    const distanceMeters =
-        Math.abs(observerPosPercent - wavePosPercent) * METERS_PER_PERCENT;
+    const distanceMeters = Math.abs(observerPosPercent - wavePosPercent) * METERS_PER_PERCENT;
     const delaySeconds = distanceMeters / SPEED_OF_SOUND;
     const timeoutId = setTimeout(() => {
         createReflectionWave(observerPosPercent, 50, 1);
     }, delaySeconds * 1000);
-    // jeśli obiekt emitujący fale jest dalej od obserwatora to wszystkie fale powinny zniknąć
-    // fale odbite dalej są emitowane mimo że nie są w zasięgu emitowanej fali
+
     reflection2DTimeouts.push(timeoutId);
 }
 
-// WSTAW W FUNKCJI createWave – NA JEJ POCZĄTKU
 function createWave(xPosition, timestamp) {
-    // 🔒 LIMIT LICZBY FAL
     if (waves.length > 1000) {
         const oldest = waves.shift();
         if (oldest && oldest.element) oldest.element.remove();
@@ -426,11 +413,21 @@ function createWave(xPosition, timestamp) {
     wave.style.animation = `wave-expand ${WAVE_LIFETIME}s linear forwards`;
     let finalScale;
     switch (currentType) {
-        case "car": finalScale = 30; break;
-        case "ambulance": finalScale = 40; break;
-        case "sport": finalScale = 50; break;
-        case "jet": case "missile": finalScale = 60; break;
-        default: finalScale = 30;
+        case "car":
+            finalScale = 30;
+            break;
+        case "ambulance":
+            finalScale = 40;
+            break;
+        case "sport":
+            finalScale = 50;
+            break;
+        case "jet":
+        case "missile":
+            finalScale = 60;
+            break;
+        default:
+            finalScale = 30;
     }
 
     wave.animate(
@@ -466,7 +463,6 @@ function createWave(xPosition, timestamp) {
         }
     }
 }
-
 
 function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = null) {
     const wave = document.createElement("div");
@@ -516,16 +512,14 @@ function scheduleReflectedWave(observerPos, wavePos, timestamp, edgeX = null, is
 }
 
 function clearReflectedWaves() {
-    // Usuń timeouty
     reflectedWaveTimeouts.forEach((id) => clearTimeout(id));
     reflectedWaveTimeouts = [];
     reflection2DTimeouts.forEach((id) => clearTimeout(id));
     reflection2DTimeouts = [];
-    // Usuń fale z DOM
+
     document.querySelectorAll(".wave-reflected, .wave-reflected-2d").forEach((el) => el.remove());
 }
 
-// Events
 speedControl.addEventListener("input", () => {
     speed = parseFloat(speedControl.value) || 0;
     console.debug(`Nowa prędkość: ${speed.toFixed(2)} m/s, currentType: ${currentType}`);
@@ -544,7 +538,6 @@ frequencyControl.addEventListener("input", () => {
 });
 
 function updateDopplerDetails() {
-    // freqObserver jest liczbowy również dla prędkości naddźwiękowych
     let lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
     let freqObserverNum = typeof freqObserver === "number" ? freqObserver : null;
     let deltaF = freqObserverNum !== null ? freqObserverNum - sourceFrequency : null;
@@ -563,7 +556,7 @@ function updateDopplerDetails() {
     }
 
     let phaseShift = (2 * Math.PI * distanceMeters) / (lambda > 0 ? lambda : 1);
-    let energyAtObs = 1 / Math.pow(distanceMeters || 1, 2); // zapobiegamy dzieleniu przez 0
+    let energyAtObs = 1 / Math.pow(distanceMeters || 1, 2);
     let isAudible = sourceFrequency >= 20 && sourceFrequency <= 20000;
     let wavefrontsPerSecond = sourceFrequency;
 
@@ -585,22 +578,16 @@ function updateSpeedDisplay() {
     try {
         lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
         const mach = speed / SPEED_OF_SOUND;
-        freqObserver = dopplerFrequencySound(
-            sourceFrequency,
-            SPEED_OF_SOUND,
-            sourceX < observerX ? speed : -speed,
-            0
-        );
+        freqObserver = dopplerFrequencySound(sourceFrequency, SPEED_OF_SOUND, sourceX < observerX ? speed : -speed, 0);
         if (speed < SPEED_OF_SOUND) {
             machAngleDeg = "-";
             machAngleRad = "-";
         } else {
-            const theta = Math.asin(SPEED_OF_SOUND / speed); // radiany
+            const theta = Math.asin(SPEED_OF_SOUND / speed);
             machAngleRad = theta;
             machAngleDeg = theta * (180 / Math.PI);
         }
 
-        // --- DYNAMIC DISTANCE CALCULATION ---
         const distance = sourceX - observerX;
         let distanceText;
         if (distance < 0) {
@@ -689,7 +676,7 @@ function createDebugMarker(xPosition) {
 }
 
 function update(timestamp) {
-    if (isPaused) return; 
+    if (isPaused) return;
 
     const deltaTime = 0.016;
     sourceX += (speed / SPEED_OF_SOUND) * deltaTime * 10 * SCALE_FACTOR;
@@ -811,8 +798,6 @@ function update(timestamp) {
     const waveWidthPx = 0.95 * parseFloat(getComputedStyle(document.documentElement).fontSize);
     const proximityThreshold = (waveWidthPx / (container.clientWidth || 1000)) * 100 * 5;
 
-    // Observer (Supersonic only)
-
     if (speed >= SPEED_OF_SOUND && (currentType === "jet" || currentType === "missile")) {
         movingDot.style.transform = `translate(-50%, -50%)`;
 
@@ -828,7 +813,6 @@ function update(timestamp) {
             currentTime - lastShockwaveTime > MIN_SHOCKWAVE_INTERVAL;
         createMachCone(timestamp);
         updateMachConeAndLines();
-
 
         if (isConeEdgeAtObserver) {
             scheduleReflectedWave(observerX, sourceX, timestamp, edgeX, true);
@@ -870,7 +854,6 @@ function makePanelDraggable(panel, handle) {
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-
     document.getElementById("startBtn").addEventListener("click", () => {
         if (isPaused) {
             isPaused = false;
@@ -887,10 +870,9 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     observer.style.left = observerX + "%";
-    // Inicjalizacja wyświetlacza
+
     updateDisplays();
 
-    // Nasłuchiwanie zmian suwaków
     speedControl.addEventListener("input", updateDisplays);
     frequencyControl.addEventListener("input", updateDisplays);
 
@@ -904,7 +886,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     movingDot.addEventListener("mousedown", (e) => {
         isDragging = true;
-        // Różnica między kliknięciem a środkiem obrazka
+
         const rect = movingDot.getBoundingClientRect();
         offsetX = e.clientX - (rect.left + rect.width / 2);
         document.body.style.cursor = "grabbing";
@@ -914,17 +896,17 @@ window.addEventListener("DOMContentLoaded", () => {
     window.addEventListener("mousemove", (e) => {
         if (!isDragging) return;
         const containerRect = container.getBoundingClientRect();
-        // Ustal pozycję względem kontenera
+
         let x = e.clientX - containerRect.left - offsetX;
-        // Ogranicz w zakresie kontenera
+
         x = Math.max(0, Math.min(x, containerRect.width));
-        // Przelicz na % szerokości kontenera
+
         const percent = (x / containerRect.width) * 100;
         movingDot.style.left = percent + "%";
-        // Zaktualizuj sourceX do nowej pozycji (jeśli używasz w logice)
+
         sourceX = percent;
         clearReflectedWaves();
-        updateMachConeAndLines(); // żeby linie szły za dotem
+        updateMachConeAndLines();
         updateSpeedDisplay();
     });
 
@@ -955,12 +937,11 @@ window.addEventListener("DOMContentLoaded", () => {
             const percent = (x / containerRect.width) * 100;
             observer.style.left = percent + "%";
             observerX = percent;
-            // Teraz wszystko co zależy od pozycji obserwatora
+
             clearReflectedWaves();
             updateMachConeAndLines();
             updateSpeedDisplay();
         }
-        // (stary kod dla movingDot zostaje!)
     });
 
     window.addEventListener("mouseup", (e) => {
@@ -977,6 +958,11 @@ window.addEventListener("DOMContentLoaded", () => {
     const tbody = document.getElementById("results-table-body");
 
     document.getElementById("show-results-btn").addEventListener("click", showResultsModal);
+    document.getElementById("close-btn").addEventListener("click", () => {
+        const modal = document.getElementById("results-modal");
+        modal.style.display = "none";
+    });
+
     window.addEventListener("click", (e) => {
         const modal = document.getElementById("results-modal");
         if (e.target === modal) modal.style.display = "none";
@@ -988,7 +974,6 @@ window.addEventListener(
     function (e) {
         if (e.ctrlKey) {
             e.preventDefault();
-            // Możesz tu np. wyświetlić komunikat, ale nie zatrzymasz zoomu
         }
     },
     {passive: false}
