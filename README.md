@@ -132,7 +132,6 @@ Wszystkie powyższe wzory zostały zaimplementowane w funkcjach JavaScript (szcz
 * **dopplerFrequencySound(fz, v, vz, vo)** – oblicza częstotliwość dla obserwatora wg klasycznego efektu Dopplera
 * **countWaveLength(fz, v)** – wylicza długość fali
 * **velocitySource/velocityObserver** – pozwalają obliczyć prędkość źródła lub obserwatora na podstawie znanych częstotliwości
-* **redshift/blueshift** – przesunięcia częstotliwości
 * **Energia, czas dotarcia, przesunięcie fazowe** – dodatkowe parametry liczone wg wzorów podanych wyżej
 
 Parametry domyślne i jednostki symulacji:
@@ -140,7 +139,7 @@ Parametry domyślne i jednostki symulacji:
 * Prędkość dźwięku w powietrzu: **343 m/s**
 * Zakres prędkości źródła: **1 – 8000 m/s**
 * Zakres częstotliwości: **20 – 20000 Hz**
-* Przeskalowanie pozycji i animacji: 1% szerokości ekranu ≈ 3.43 m
+* Przeskalowanie pozycji i animacji: 1% szerokości ekranu ≈ 3.43 m (To jest kompromis – zrobiony, aby zobaczyć efekt. Dosłowne skalowanie doprowadziłoby)
 * Animacja fali – liczba emitowanych fal ograniczona przez skalę częstotliwości (dla wydajności przeglądarki)
 
 ---

@@ -162,28 +162,6 @@
             return v * (fo / fz - 1);
         };
 
-        /**
-         * Oblicza przesunięcie ku czerwieni (redshift).
-         * fz – częstotliwość źródła [Hz]
-         * fo – częstotliwość obserwowana [Hz]
-         * Wynik dodatni – źródło oddala się od obserwatora.
-         */
-        const redshift = (fz, fo) => {
-            // (fo - fz) / fz – stosunek zmiany częstotliwości do częstotliwości źródła
-            return (fo - fz) / fz;
-        };
-
-        /**
-         * Oblicza przesunięcie ku błękitowi (blueshift).
-         * fz – częstotliwość źródła [Hz]
-         * fo – częstotliwość obserwowana [Hz]
-         * Wynik dodatni – źródło zbliża się do obserwatora.
-         */
-        const blueshift = (fz, fo) => {
-            // (fz - fo) / fz – odwrotność wzoru redshift, dodatni dla zbliżania
-            return (fz - fo) / fz;
-        };
-
         // Odtwarza dźwięk (np. efekt stożka Macha) na podstawie wskazanego pliku audio
         function playSound(url) {
             const sound = new Audio(url); // Tworzy nowy obiekt Audio z podanym adresem pliku
@@ -830,20 +808,25 @@
             let finalScale;
             switch (currentType) {
                 case "car":
-                    finalScale = 40;
+                    finalScale = 30;
                     break;
                 case "ambulance":
-                    finalScale = 40;
+                    finalScale = 30;
                     break;
                 case "sport":
-                    finalScale = 50;
+                    finalScale = 30;
                     break;
                 case "jet":
                 case "missile":
-                    finalScale = 58;
+                    if(speed < SPEED_OF_SOUND) {
+                        finalScale = 50;
+                    }
+                    if(speed >= SPEED_OF_SOUND) {
+                        finalScale = 90;
+                    }
                     break;
                 default:
-                    finalScale = 40;
+                    finalScale = 30;
             }
 
             // Dodatkowa animacja (JS) dla płynnego przejścia skali i przezroczystości
