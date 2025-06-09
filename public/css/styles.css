@@ -32,6 +32,16 @@ body {
     z-index: 1000000000000;
 }
 
+.control-btn {
+    background-color: white;
+    color: black;
+    width: 8rem;
+    height: max-content;
+    padding: 0.5rem;
+    border-radius: 8px;
+    border: 1px solid #aaa;
+}
+
 .draggable-panel {
     position: absolute;
     cursor: grab;
@@ -183,8 +193,8 @@ input[type="range"] {
 .dot {
     position: absolute;
     top: 50%;
-    transform: translate(-150%, -50%);
-    width: 200px;
+    transform: translate(100%, -50%);
+    width: 220px;
     height: auto;
     z-index: 900000000;
 }
@@ -202,8 +212,8 @@ input[type="range"] {
 .wave {
     position: absolute;
     top: 50%;
-    width: 43px;
-    height: 43px;
+    width: 20px;
+    height: 20px;
     background: rgba(0, 213, 255, 0.256);
     border: 0px solid hsla(192, 100%, 50%, 0.39);
     border-radius: 100%;
@@ -213,12 +223,12 @@ input[type="range"] {
 
 @keyframes wave-expand {
     0% {
-        transform: scale(0.6);
+        transform: scale(0.1);
         opacity: 1;
     }
 
     100% {
-        transform: scale(74.5);
+        transform: scale(0.5);
         opacity: 0;
     }
 }
@@ -317,9 +327,9 @@ input[type="range"] {
 
 #shockwave_upper,
 #shockwave_lower {
-    stroke-width: 2;
+    stroke-width: 3;
     /* Grubość linii */
-    stroke: red;
+    stroke: rgb(0, 187, 255);
     /* Kolor linii - możesz zmienić na inny, np. blue dla rakiety */
 }
 
