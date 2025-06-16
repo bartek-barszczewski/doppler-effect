@@ -57,25 +57,37 @@
                     <input type="range" id="speedControl" min="1" max="8000" step="1" value="20">
                     <span>Max 8000</span>
                 </div>
+                
+                <div class="slider-labels">
+                    <label for="speedControlInput">
+                        Wpisz prędkość [m/s]:
+                    </label>
+                    <input type="input" id="speedControlInput" value="20">
+                </div>
 
                 <label for="frequencyControl">
                     Częstotliwość fali [Hz]:
                     <span id="frequencyDisplay"></span>
                 </label>
                 <div class="slider-labels">
-                    <span>Min 20</span> <input type="range" id="frequencyControl" min="20" max="20000" step="1"
-                        value="2500">
+                    <span>Min 20</span> <input type="range" id="frequencyControl" min="20" max="20000" step="1" value="2500">
                     <span>Max 20_000</span>
+                </div>
+                <div class="slider-labels">
+                    <label for="frequencyControlInput">
+                        Wpisz częstotliwość [Hz]:
+                    </label>
+                    <input type="input" id="frequencyControlInput" value="2500">
                 </div>
             </fieldset>
             <div class="drag-handle" id="controls-handle">:::</div>
             <div class="note">
-                <p> Uwaga: <br>
+                <h6> Uwaga: <br>
                     Aktualna częstotliwość jest dzielona przez 1000 w celu <br> zoptymalizowani ilości tworzenia się
                     fal.<br />
                     Przeglądarka posiada ograniczone możliwości i przy ogromnej ilości elementów (fal), może zachować
                     się w sposób nieprzewidziany.
-                </p>
+                </h6>
             </div>
         </div>
 
@@ -178,9 +190,11 @@
 
         // Suwak do ustawiania prędkości źródła dźwięku
         const speedControl = document.getElementById("speedControl");
-
+        const speedControlInput = document.getElementById('speedControlInput');
+        
         // Suwak do ustawiania częstotliwości dźwięku
         const frequencyControl = document.getElementById("frequencyControl");
+        const frequencyControlInput = document.getElementById('frequencyControlInput');
 
         // Wyświetlanie aktualnej prędkości (wartość numeryczna przy suwaku)
         const speedDisplay = document.getElementById("speedDisplay");
@@ -1474,6 +1488,35 @@
         // Ten blok kodu wykonuje się, gdy cała zawartość DOM (HTML) jest już wczytana i gotowa do pracy
         window.addEventListener("DOMContentLoaded", () => {
 
+            
+            // jak wpiszesz prędkość – updatuj suwak i resztę
+            speedControlInput.addEventListener('input', () => {
+                let v = parseFloat(speedControlInput.value) || 0;
+                // ograniczamy do zakresu [min, max]
+                v = Math.max(speedControl.min, Math.min(speedControl.max, v));
+                speedControl.value = v;
+                // “odpala” wszystkie istniejące input-listenery na speedControl
+                speedControl.dispatchEvent(new Event('input'));
+                // zaaktualizuj symulację
+                speed = v;
+                updateDisplays();
+                updateSpeedDisplay();
+                clearReflectedWaves();
+            });
+            
+            // analogicznie dla częstotliwości
+            frequencyControlInput.addEventListener('input', () => {
+                let f = parseFloat(frequencyControlInput.value) || 0;
+                f = Math.max(frequencyControl.min, Math.min(frequencyControl.max, f));
+                frequencyControl.value = f;
+                frequencyControl.dispatchEvent(new Event('input'));
+                isFrequencyManual = true;
+                sourceFrequency = f;
+                updateDisplays();
+                updateFrequencyDisplay();
+                clearReflectedWaves();
+            });
+            
             // Obsługa przycisku "START" – wznowienie animacji
             document.getElementById("startBtn").addEventListener("click", () => {
                 if (isPaused) {
