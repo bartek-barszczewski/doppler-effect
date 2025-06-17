@@ -2,6 +2,8 @@
     Bartłomiej Barszczewski
     Fizyka
     Efekt Dopplera i zjawisko stożka Macha
+    Semestr II
+    Grupa B
     
     Ten moduł symuluje rozchodzenie się fal dźwiękowych, efekt Dopplera
     oraz wizualizuje stożek Macha przy prędkościach ponaddźwiękowych.

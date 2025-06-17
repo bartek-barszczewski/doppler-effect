@@ -2,6 +2,8 @@
     Bartłomiej Barszczewski
     Fizyka
     Efekt Dopplera i zjawisko stożka Macha
+    Semestr II
+    Grupa B
 */
 // Pobieramy <canvas> i 2D-kontekst do rysowania fal
 const canvas = document.getElementById("waveCanvas");

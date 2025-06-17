@@ -2,6 +2,8 @@
     Bartłomiej Barszczewski
     Fizyka
     Efekt Dopplera i zjawisko stożka Macha
+    Semestr II
+    Grupa B
 */
 // Oblicza częstotliwość fali dźwiękowej odebranej przez obserwatora
 // z uwzględnieniem klasycznego efektu Dopplera (dla fali akustycznej).
