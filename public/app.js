@@ -1,117 +1,126 @@
-const dopplerFrequencySound = (fz, v, vz, vo) => {
-    const denom = v - vz;
-    if (Math.abs(vz) >= v) {
-        return fz * ((v + vo) / Math.abs(denom));
-    }
-
-    return fz * ((v + vo) / denom);
-};
-
-const countWaveLength = (fz, v) => {
-    return v / fz;
-};
-
-const velocitySource = (fz, fo, v) => {
-    return v * (1 - fz / fo);
-};
-
-const velocityObserver = (fz, fo, v) => {
-    return v * (fo / fz - 1);
-};
-
-function playSound(url) {
-    const sound = new Audio(url);
-    sound.play();
-}
-
+/*
+    Bartłomiej Barszczewski
+    Fizyka
+    Efekt Dopplera i zjawisko stożka Macha
+*/
+// Pobieramy <canvas> i 2D-kontekst do rysowania fal
 const canvas = document.getElementById("waveCanvas");
 const ctx = canvas.getContext("2d");
 
+// Łapiemy kropkę (#movingDot), która reprezentuje Twoje „źródło” fali
 const movingDot = document.getElementById("movingDot");
 
+// Element, w którym będziemy wyświetlać szczegóły efektu Dopplera
+const dopplerDetails = document.getElementById("dopplerDetails");
+
+// Kontener do responsywnego dopasowania wielkości <canvas>
 const container = document.querySelector(".container");
 
+
+// Sterowanie prędkością i częstotliwością – inputy i ich wyświetlacze
 const speedControl = document.getElementById("speedControl");
 const speedControlInput = document.getElementById("speedControlInput");
-
 const frequencyControl = document.getElementById("frequencyControl");
 const frequencyControlInput = document.getElementById("frequencyControlInput");
-
 const speedDisplay = document.getElementById("speedDisplay");
-
 const frequencyDisplay = document.getElementById("frequencyDisplay");
-
 const speedDetails = document.getElementById("speedDetails");
 
+// Elementy wizualizujące stożek Macha (bazowa, górna i dolna część)
+const shockwaveBase = document.getElementById("shockwave_base");
 const shockwaveUpper = document.getElementById("shockwave_upper");
 const shockwaveLower = document.getElementById("shockwave_lower");
 
+// Obserwator w DOM, jego pozycja decyduje o kolizji z frontem fali
 const observer = document.getElementById("observer1");
 
-const DEFAULT_FREQ = 400;
+// Domyślne wartości, gdy UI jest puste lub niezaładowane
+const DEFAULT_FREQ = 400; // Hz
+const DEFAULT_SPEED = 25; // m/s
 
-const DEFAULT_SPEED = 25;
-
+// Stałe fizyczne i skalujące:
+// SPEED_OF_SOUND – prędkość dźwięku (m/s),
+// METERS_PER_PERCENT – ile metrów na 1% szerokości kontenera
 const SPEED_OF_SOUND = 343;
+const METERS_PER_PERCENT = 1;
+const waveSpeedPercentPerSecond = (SPEED_OF_SOUND / METERS_PER_PERCENT) * 100;
 
-const METERS_PER_PERCENT = 3.43;
-
+// Symulowana prędkość dźwięku w Twojej skali
 const SPEED_OF_SOUND_SIM = SPEED_OF_SOUND / METERS_PER_PERCENT;
 
-const SCALE_FACTOR = 1.5;
+// Dodatkowe współczynniki sterujące przebiegiem symulacji
+const SCALE_FACTOR = 3.43; // wpływa na tempo ruchu kropki
+const WAVE_LIFETIME = 3.43; // ile sekund żyje fala na ekranie
+const CONE_WIDTH_PERCENT = 100; // szerokość stożka w % szerokości canvas
+const MIN_SHOCKWAVE_INTERVAL = 1; // sekundy między uderzeniami fali uderzeniowej
+const FREQUENCY_SCALE_FACTOR = 1000; // do przeliczeń audio
 
-const WAVE_LIFETIME = 2;
-
-const CONE_WIDTH_PERCENT = 30;
-
-const MIN_SHOCKWAVE_INTERVAL = 5;
-
-const FREQUENCY_SCALE_FACTOR = 1000;
-
-let observerX = 50;
-
-let sourceX = 50;
-
+// Zmienne dynamiczne stanu symulacji:
+let observerX = 50; // procentowa pozycja obserwatora
+let sourceX = 50; // procentowa pozycja źródła
 let speed = parseFloat(speedControl.value) || DEFAULT_SPEED;
-
 let sourceFrequency = parseFloat(frequencyControl.value) || DEFAULT_FREQ;
-
-let lastWaveTime = 0;
-
-let waves = [];
-
+let lastWaveTime = 0; // timestamp ostatniej emisji fali
+let waves = []; // tablica aktywnych obiektów Wave
 let isFrequencyManual = false;
-
 let currentType = null;
-
 let lastShockwavePos = null;
-
 let lastShockwaveTime = 0;
-
 let freqObserver = null;
-
 let reflectedWaveTimeouts = [];
-
 let reflection2DTimeouts = [];
 
+// Skrót do prędkości dźwięku w równaniach
 const c = SPEED_OF_SOUND;
 
+// Zmienne Web Audio API – inicjalizowane przy pierwszym odtworzeniu dźwięku
 let audioContext = null;
-
 let osc = null;
-
 let gain = null;
-
 let lfo = null;
-
 let lfoGain = null;
 
+// Typy dźwięków silnika, pauza itp.
 let currentSoundType = null;
-
 let lastEngineSoundType = null;
-
 let isPaused = false;
 
+
+// Funkcja: przy zmianie rozmiaru okna aktualizuje wielkość <canvas>
+// dzięki temu rysunek zawsze pasuje do .container
+function resizeWaveCanvas() {
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+}
+window.addEventListener("resize", resizeWaveCanvas);
+resizeWaveCanvas(); // initial setup
+
+let coneStartTime = null;
+
+
+/**
+ * showResultsModal()
+ *
+ * Wyświetla okno z wynikami symulacji, gdy użytkownik zatrzyma animację:
+ * 1. Jeśli symulacja nie jest wstrzymana, przycisk pauzy zabłyśnie na czerwono
+ *    kilka razy, by zwrócić uwagę, i funkcja zakończy działanie.
+ * 2. Gdy symulacja jest wstrzymana, oblicza i pokazuje w tabeli:
+ *    – Prędkość (m/s → km/h i mph)
+ *    – Liczbę Macha: M = v / c
+ *    – Kąt stożka Mach: θ = arcsin(c / v)   dla v ≥ c
+ *    – Długość fali: λ = c / f₀
+ *    – Przesunięcie Dopplera:
+ *        f′ = f₀ · (c / (c ∓ v))  
+ *      gdzie „–” jeśli źródło się zbliża, „+” jeśli oddala
+ *    – Δf = f′ – f₀, współczynnik Dopplera: f′ / f₀
+ *    – Odległość: Δx = |x_obs – x₀| · METERS_PER_PERCENT
+ *    – Czas dotarcia fali: t = d / c
+ *    – Przesunięcie fazowe: Δφ = (2π · d) / λ
+ *    – Energia względna: E ∝ 1 / d²
+ *    – Słyszalność: f₀ ∈ [20, 20000] Hz
+ * 
+ * Następnie wypełnia tabelę w modalu odpowiednimi wartościami i pokazuje go.
+ */
 function showResultsModal() {
     const modalResults = document.getElementById("results-modal");
 
@@ -138,37 +147,21 @@ function showResultsModal() {
 
     const kmh = speed * 3.6;
     const mph = speed * 2.23694;
-
     const mach = speed / SPEED_OF_SOUND;
+    const theta = mach >= 1 ? Math.asin(1 / mach) : null;
 
     const lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
-
     const relativeVelocity = sourceX < observerX ? speed : -speed;
-
     const freqObserverNum = dopplerFrequencySound(sourceFrequency, SPEED_OF_SOUND, relativeVelocity, 0);
-
     const deltaF = freqObserverNum - sourceFrequency;
-
     const dopplerCoeff = freqObserverNum / sourceFrequency;
-
     const distancePercent = Math.abs(observerX - sourceX);
-
     const distanceMeters = distancePercent * METERS_PER_PERCENT;
-
+    const distanceText = `${distanceMeters.toFixed(2)} m`; // Dodana definicja distanceText
     const timeToObserver = distanceMeters / SPEED_OF_SOUND;
-
     const phaseShift = (2 * Math.PI * distanceMeters) / (lambda > 0 ? lambda : 1);
-
     const energyAtObs = 1 / Math.pow(distanceMeters || 1, 2);
-
     const isAudible = sourceFrequency >= 20 && sourceFrequency <= 20000;
-
-    const distanceText =
-        sourceX - observerX < 0
-            ? `PRZED obserwatorem (-${distancePercent.toFixed(2)}%)`
-            : sourceX - observerX > 0
-            ? `ZA obserwatorem (+${distancePercent.toFixed(2)}%)`
-            : "Na obserwatorze (0%)";
 
     const rows = [
         ["Prędkość", `${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph`, "—"],
@@ -176,16 +169,19 @@ function showResultsModal() {
         ["Częstotliwość źródła", `${sourceFrequency.toFixed(1)} Hz`, "Dana"],
         ["Długość fali", `${lambda.toFixed(2)} m`, "λ = v_dźw / f₀"],
         ["Częstotliwość obserwatora", `${freqObserverNum.toFixed(1)} Hz`, "f' = f₀ · v_dźw / (v_dźw - v)"],
-        ["Kąt stożka Macha", mach < 1 ? "—" : `asin(1/M)`, "sin(θ) = v_dźw / v (dla M > 1)"],
         ["Odległość od obserwatora", distanceText, "Δx = x₀ - x_obs"],
         ["Δf (Przesunięcie Dopplera)", `${deltaF.toFixed(2)} Hz`, "Δf = f' - f₀"],
         ["Współczynnik Dopplera", dopplerCoeff.toFixed(3), "f' / f₀"],
         ["Czas dotarcia fali", `${timeToObserver.toFixed(3)} s`, "t = d / v_dźw"],
         ["Przesunięcie fazowe", `${phaseShift.toFixed(2)} rad`, "Δφ = 2π · d / λ"],
         ["Energia względna", energyAtObs.toExponential(2), "E ∝ 1 / d²"],
+        [
+            "Kąt stożka Macha",
+            mach < 1 ? "—" : `${((theta * 180) / Math.PI).toFixed(1)}° / ${theta.toFixed(3)} rad`,
+            "sin(θ) = v_dźw / v",
+        ],
         ["Słyszalność", isAudible ? "TAK" : "NIE", "f₀ ∈ [20, 20000] Hz"],
     ];
-
     const tbody = document.getElementById("results-table-body");
     tbody.innerHTML = "";
 
@@ -198,6 +194,20 @@ function showResultsModal() {
     modalResults.style.display = "flex";
 }
 
+/**
+ * startAmbulanceSiren()
+ *
+ * Uruchamia syrenę ambulansową przy użyciu Web Audio API:
+ * 1. Tworzy AudioContext (nowy kontekst dźwiękowy).
+ * 2. Generuje dwa oscylatory:
+ *    – osc: główny ton syreny (fala kwadratowa, 700 Hz)
+ *    – lfo: modulacja tonów (fala trójkątna, 5 Hz)
+ * 3. Za pomocą gain (lfoGain o wartości 250 Hz) łączy LFO z częstotliwością głównego oscylatora,
+ *    co daje charakterystyczne „migotanie” tonu syreny.
+ * 4. Ustawia głośność syreny na 50% i podłącza wyjście do domyślnego urządzenia audio.
+ *
+ * */
+ 
 function startAmbulanceSiren() {
     stopAmbulanceSiren();
 
@@ -229,6 +239,14 @@ function startAmbulanceSiren() {
     lfo.start();
 }
 
+/* *
+* stopAmbulanceSiren()
+*
+* Zatrzymuje syrenę i czyści zasoby:
+* – Zatrzymuje (stop) i odłącza (_disconnect_) oba oscylatory (osc, lfo).
+* – Odłącza obiekty gain (lfoGain, gain).
+* – Zamyka AudioContext, aby zwolnić zasoby systemowe.
+*/
 function stopAmbulanceSiren() {
     if (osc) {
         try {
@@ -268,11 +286,22 @@ function stopAmbulanceSiren() {
     }
 }
 
+/**
+ * startEngineSound(type)
+ *
+ * Włącza dźwięk silnika lub syrenę w zależności od typu:
+ * 1. Jeśli typ się nie zmienił, nic nie robi (zapobiega restartowi).
+ * 2. Zatrzymuje poprzedni dźwięk (stopEngineSound).
+ * 3. Dla typu "ambulance" wywołuje startAmbulanceSiren().
+ * 4. W przeciwnym razie tworzy nowy AudioContext, oscylator i gain:
+ *    – typ oscylatora: "square" (sport) lub "sine" (inne)
+ *    – częstotliwość: 60 Hz (sport) lub 40 Hz (inne)
+ *    – poziom głośności: 0.5
+ *    – podłącza do wyjścia audio i uruchamia oscylator.
+ */
 function startEngineSound(type) {
     if (currentSoundType === type) return;
-
     stopEngineSound();
-
     currentSoundType = type;
 
     if (type === "ambulance") {
@@ -281,31 +310,31 @@ function startEngineSound(type) {
     }
 
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
     osc = audioContext.createOscillator();
-
     gain = audioContext.createGain();
 
-    if (type === "car") {
-        osc.type = "square";
-        osc.frequency.value = 120;
-    } else if (type === "sport") {
+    if (type === "sport") {
         osc.type = "square";
         osc.frequency.value = 60;
     } else {
         osc.type = "sine";
         osc.frequency.value = 40;
     }
-
     gain.gain.value = 0.5;
-
     osc.connect(gain);
-
     gain.connect(audioContext.destination);
-
     osc.start();
 }
 
+/**
+ * stopEngineSound()
+ *
+ * Wyłącza wszystkie aktywne dźwięki silnika i syreny:
+ * 1. Najpierw wywołuje stopAmbulanceSiren() dla bezpieczeństwa.
+ * 2. Zatrzymuje i odłącza oscylator (osc), jeśli istnieje.
+ * 3. Odłącza gain, zamyka AudioContext, zwalnia zasoby.
+ * 4. Resetuje flagę currentSoundType, aby można było ponownie włączyć ten sam dźwięk.
+ */
 function stopEngineSound() {
     stopAmbulanceSiren();
 
@@ -334,216 +363,232 @@ function stopEngineSound() {
     currentSoundType = null;
 }
 
-function updateEngineSound(type, srcX, observerX, v) {
+const VEHICLE_CONFIG = {
+    ambulance: {
+        volumeFactor: 0.07,
+        silenceThreshold: 40,
+    },
+    sport: {
+        baseFrequency: 30,
+        frequencyScale: 0.11,
+        minFrequency: 20,
+        maxFrequency: 52,
+        volumeFactor: 0.3,
+        silenceThreshold: 20,
+    },
+};
+
+/**
+ * Oblicza dystans między źródłem a obserwatorem w metrach.
+ * Wzór: |xₛ - xₒ| * przelicznik
+ * - xₛ: pozycja źródła
+ * - xₒ: pozycja obserwatora
+ */
+function calculateDistance(sourcePositionX, observerPositionX) {
+    const percentToMeters = METERS_PER_PERCENT;
+    return Math.abs(sourcePositionX - observerPositionX) * percentToMeters;
+}
+
+/**
+ * Oblicza głośność dźwięku na podstawie dystansu.
+ * Wzór:
+ *   volume = min(1, 1 / max(d, dₘᵢₙ)²) * vFactor
+ *   jeśli d > próg_ciszy → zwraca 0
+ * - d: dystans
+ * - dₘᵢₙ: minimalny dystans (żeby uniknąć dzielenia przez 0)
+ * - vFactor: współczynnik głośności
+ * - próg_ciszy: powyżej tej wartości nie słychać dźwięku
+ */
+function calculateVolume(distance, minDistance, volumeFactor, silenceThreshold) {
+    const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * volumeFactor;
+    return distance > silenceThreshold ? 0 : volume;
+}
+
+/**
+ * Aktualizuje dźwięk silnika w zależności od typu pojazdu, pozycji i prędkości.
+ * - Jeśli typ się zmienił → uruchamia nowy dźwięk
+ * - Jeśli typ nie jest 'ambulance' lub 'sport' → zatrzymuje dźwięk
+ * - Sprawdza czy audioContext i gain są gotowe
+ * - Dla 'ambulance':
+ *     → oblicza głośność przez calculateVolume
+ * - Dla 'sport':
+ *     → oblicza głośność i częstotliwość podstawową:
+ *        freq = baseFrequency + frequencyScale × prędkość
+ *     → dopasowuje freq do zakresu min–max
+ *     → stosuje efekt Dopplera:
+ *        f' = f × (c / (c ± v))
+ *        - f: częstotliwość źródła
+ *        - c: prędkość dźwięku
+ *        - v: prędkość źródła względem obserwatora (ujemna/gdy się oddala)
+ *     → ustawia nową głośność i częstotliwość na oscylatorze
+ */
+function updateEngineSound(type, sourcePositionX, observerPositionX, vehicleSpeed) {
     if (type !== lastEngineSoundType) {
         startEngineSound(type);
         lastEngineSoundType = type;
     }
 
-    if (!["car", "ambulance", "sport"].includes(type)) {
+    if (!["ambulance", "sport"].includes(type)) {
         stopEngineSound();
         return;
     }
 
-    if (type === "ambulance" && gain && audioContext) {
-        const percentToMeters = METERS_PER_PERCENT;
-        const distance = Math.abs(srcX - observerX) * percentToMeters;
-        const minDistance = 1;
-        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.07;
-        const silenceThreshold = 40;
-        const appliedVolume = distance > silenceThreshold ? 0 : volume;
-        gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.03);
+    if (!audioContext || !gain) {
+        console.warn("Audio context or gain node is not initialized.");
+        return;
     }
 
-    if ((type === "car" || type === "sport") && gain && osc && audioContext) {
-        const percentToMeters = METERS_PER_PERCENT;
-        const distance = Math.abs(srcX - observerX) * percentToMeters;
-        const minDistance = 1;
-        const volume = Math.min(1, 1 / Math.pow(Math.max(distance, minDistance), 2)) * 0.3;
-        const silenceThreshold = 20;
-        const appliedVolume = distance > silenceThreshold ? 0 : volume;
+    const distance = calculateDistance(sourcePositionX, observerPositionX);
+    const minDistance = 1;
 
-        let base, scale, low, high;
-        if (type === "car") {
-            base = 80;
-            scale = 0.6;
-            low = 50;
-            high = 220;
-        } else {
-            base = 30;
-            scale = 0.11;
-            low = 20;
-            high = 52;
+    if (type === "ambulance") {
+        const config = VEHICLE_CONFIG.ambulance;
+        const volume = calculateVolume(distance, minDistance, config.volumeFactor, config.silenceThreshold);
+        gain.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.03);
+    } else if (type === "sport") {
+        const config = VEHICLE_CONFIG[type];
+        const volume = calculateVolume(distance, minDistance, config.volumeFactor, config.silenceThreshold);
+
+        let frequency = config.baseFrequency + config.frequencyScale * vehicleSpeed;
+        frequency = Math.max(config.minFrequency, Math.min(frequency, config.maxFrequency));
+
+        const relativeVelocity = sourcePositionX < observerPositionX ? vehicleSpeed : -vehicleSpeed;
+        const dopplerFreq = dopplerFrequencySound(frequency, SPEED_OF_SOUND, relativeVelocity, 0);
+
+        if (isNaN(dopplerFreq)) {
+            console.error("Invalid Doppler frequency calculated.");
+            return;
         }
-        let freq = base + scale * v;
-        freq = Math.max(low, Math.min(freq, high));
-        const relativeVelocity = srcX < observerX ? v : -v;
-        const dopplerFreq = dopplerFrequencySound(freq, SPEED_OF_SOUND, relativeVelocity, 0);
-        gain.gain.linearRampToValueAtTime(appliedVolume, audioContext.currentTime + 0.02);
-        osc.frequency.linearRampToValueAtTime(dopplerFreq, audioContext.currentTime + 0.02);
+
+        gain.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.02);
+        if (osc) {
+            osc.frequency.linearRampToValueAtTime(dopplerFreq, audioContext.currentTime + 0.02);
+        }
     }
 }
 
-function updateDisplays() {
-    speedDisplay.textContent = speedControl.value;
-
-    frequencyDisplay.textContent = frequencyControl.value;
-}
-
+/**
+ * updateMachConeAndLines()
+ *
+ * Rysuje dynamiczny stożek Macha jako zaokrąglony, wypełniony trójkąt SVG,
+ * widoczny tylko gdy obiekt porusza się szybciej niż dźwięk (Mach > 1).
+ *
+ * Uwzględniane efekty:
+ * - Kąt stożka: θ = arcsin(1 / Mach)
+ * - Długość ramienia: zależna od liczby Macha (im większa, tym dłuższy stożek)
+ * - Zaokrąglone ramiona z wykorzystaniem krzywych Béziera (`<path>`)
+ * - Kolor stożka zmienia się w zależności od liczby Macha:
+ *     < 1.5 → niebieskawy, < 2 → żółty, ≥ 2 → czerwony
+ *
+ * Parametry geometryczne:
+ * - dx = L × cos(θ) — przesunięcie poziome od źródła
+ * - dy = L × sin(θ) — przesunięcie pionowe (góra/dół)
+ * - Wypukłość kontrolowana przez `controlOffsetX` (punkt kontrolny Q)
+ *
+ * Stożek jest rysowany jako:
+ * - Krzywa Q do końca górnej linii
+ * - Linia prosta w dół
+ * - Krzywa Q powrotna do źródła
+ * - Zamknięcie ścieżki `Z`
+ */
 function updateMachConeAndLines() {
-    const rect = movingDot.getBoundingClientRect();
-
-    const containerRect = container.getBoundingClientRect();
-
-    const adjust = -25;
-
-    const dotX = rect.left - adjust - containerRect.left + rect.width / 2;
-
-    const dotY = rect.top - containerRect.top + rect.height / 2;
+    const dotRect = movingDot.getBoundingClientRect();
+    const contRect = container.getBoundingClientRect();
+    const srcX = dotRect.left + dotRect.width / 2 - contRect.left;
+    const srcY = dotRect.top + dotRect.height / 2 - contRect.top;
 
     const V = parseFloat(speedControl.value);
+    const path = document.getElementById("shockwave_path");
 
-    if (V >= SPEED_OF_SOUND) {
-        const M = V / SPEED_OF_SOUND;
-
-        const theta = Math.asin(1 / M);
-
-        const tanTheta = Math.tan(theta);
-
-        const y2_upper = dotY + tanTheta * dotX;
-
-        const y2_lower = dotY - tanTheta * dotX;
-
-        shockwaveUpper.setAttribute("x1", dotX);
-        shockwaveUpper.setAttribute("y1", dotY);
-        shockwaveUpper.setAttribute("x2", 0);
-        shockwaveUpper.setAttribute("y2", y2_upper);
-
-        shockwaveLower.setAttribute("x1", dotX);
-        shockwaveLower.setAttribute("y1", dotY);
-        shockwaveLower.setAttribute("x2", 0);
-        shockwaveLower.setAttribute("y2", y2_lower);
-
-        shockwaveUpper.style.display = "block";
-        shockwaveLower.style.display = "block";
-    } else {
-        shockwaveUpper.style.display = "none";
-        shockwaveLower.style.display = "none";
+    if (V < SPEED_OF_SOUND) {
+        path.setAttribute("d", "");
+        path.style.display = "none";
+        return;
     }
+
+    const mach = V / SPEED_OF_SOUND;
+    const theta = Math.asin(1 / mach);
+
+    // dynamiczna długość stożka: im większy Mach, tym dłuższy
+    const baseLengthPercent = 0.05; // minimum
+    const dynamicFactor = Math.min(mach - 1, 3); // ogranicz do max 3 dla ekstremalnych prędkości
+    const maxDx = contRect.width * (baseLengthPercent + dynamicFactor * 0.05); // np. 0.025 → 0.055
+    const L = maxDx / Math.cos(theta);
+
+    const dx = L * Math.cos(theta);
+    const dy = L * Math.sin(theta);
+
+    const upperEndX = srcX - dx;
+    const upperEndY = srcY - dy;
+    const lowerEndX = srcX - dx;
+    const lowerEndY = srcY + dy;
+
+    // wypukłość ramion
+    const controlOffsetX = 20;
+    const controlUpperX = upperEndX - controlOffsetX;
+    const controlLowerX = lowerEndX - controlOffsetX;
+
+    // kolor dynamiczny: zielony < 1.5M, żółty < 2M, czerwony ≥ 2M
+    let color;
+    if (mach < 1.25) {
+        color = "rgba(36, 208, 255, 0.46)";
+    } else if (mach < 1.75) {
+        color = "rgba(255, 255, 0, 0.56)";
+    } else {
+        color = "rgba(255, 0, 0, 0.44)";
+    }
+
+    // rysowanie ścieżki
+    const d = `
+        M ${srcX} ${srcY}
+        Q ${controlUpperX} ${upperEndY} ${upperEndX} ${upperEndY}
+        L ${lowerEndX} ${lowerEndY}
+        Q ${controlLowerX} ${lowerEndY} ${srcX} ${srcY}
+        Z
+    `;
+
+    path.setAttribute("d", d.trim());
+    path.setAttribute("fill", color);
+    path.style.display = "block";
 }
 
-function createReflectionWave(xPosition, yPosition, amplitude = 1) {
-    const wave = document.createElement("div");
-
-    wave.classList.add("wave-reflected-2d");
-
-    if (currentType === "jet" || currentType === "missile") {
-        const observerRect = observer.getBoundingClientRect();
-
-        const containerRect = container.getBoundingClientRect();
-
-        const leftPx = observerRect.left - containerRect.left + observerRect.width / 2;
-
-        const topPx = observerRect.top - containerRect.top + observerRect.height / 2;
-
-        wave.style.left = `${leftPx}px`;
-        wave.style.top = `${topPx}px`;
-
-        wave.style.position = "absolute";
-    } else {
-        wave.style.left = `${xPosition}%`;
-        wave.style.top = `${yPosition}%`;
-    }
-
-    wave.style.opacity = amplitude;
-
-    wave.style.width = "20px";
-    wave.style.height = "20px";
-
-    wave.style.transform = "translate(-50%, -50%) scale(0.2)";
-
-    container.appendChild(wave);
-
-    wave.animate(
-        [
-            {transform: "translate(-50%, -50%) scale(0.2)", opacity: amplitude},
-
-            {transform: "translate(-50%, -50%) scale(10)", opacity: 0},
-        ],
-        {
-            duration: 1000,
-
-            easing: "linear",
-        }
-    );
-
-    setTimeout(() => wave.remove(), 1000);
-}
-
-function createReflectedWave(xPosition, timestamp, isShockwave = false, edgeX = null) {
-    let leftPosition;
-    let topPosition;
-
-    if (currentType === "jet" || currentType === "missile") {
-        leftPosition = observerX;
-        topPosition = observer.style.top;
-    } else {
-        leftPosition = isShockwave ? edgeX : xPosition;
-    }
-
-    const wave = document.createElement("div");
-    wave.classList.add("wave-reflected");
-
-    if (isShockwave) {
-        wave.classList.add("shockwave");
-        wave.style.width = "1rem";
-        wave.style.height = "1rem";
-    }
-
-    wave.style.left = `${leftPosition}%`;
-
-    wave.style.top = `${topPosition}`;
-
-    container.appendChild(wave);
-
-    waves.push({
-        element: wave,
-        xPosition: leftPosition,
-        createdAt: timestamp / 1000,
-    });
-
-    setTimeout(() => {
-        wave.remove();
-        waves = waves.filter((w) => w.element !== wave);
-    }, WAVE_LIFETIME * 1000);
-}
-
+/**
+ * clearReflectedWaves
+ * Czyści z ekranu fale odbite, znaczniki debug i czyści związane timeouty.
+ * - Usuwa elementy DOM `.wave-reflected`, `.mach-impact`, `.debug-marker`
+ * - Czyści listy timeoutów: `reflectedWaveTimeouts`, `reflection2DTimeouts`
+ */
 function clearReflectedWaves() {
+    document.querySelectorAll(".wave-reflected, .mach-impact, .debug-marker").forEach((el) => el.remove());
     reflectedWaveTimeouts.forEach((id) => clearTimeout(id));
-    reflectedWaveTimeouts = [];
-
     reflection2DTimeouts.forEach((id) => clearTimeout(id));
+    reflectedWaveTimeouts = [];
     reflection2DTimeouts = [];
-
-    document.querySelectorAll(".wave-reflected, .wave-reflected-2d").forEach((el) => el.remove());
 }
 
+/**
+ * updateDopplerDetails
+ * Aktualizuje panel z parametrami efektu Dopplera i fali.
+ *
+ * Wzory i obliczenia:
+ *   λ = c / fₛ — długość fali
+ *   Δf = fₒ - fₛ — przesunięcie Dopplera
+ *   Doppler coeff = fₒ / fₛ — współczynnik Dopplera
+ *   t = d / c — czas dotarcia fali
+ *   przesunięcie fazy = (2π × d) / λ
+ *   energia względna = 1 / d²
+ *   słyszalność: 20Hz ≤ fₛ ≤ 20000Hz
+ */
 function updateDopplerDetails() {
     let lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
-
     let freqObserverNum = typeof freqObserver === "number" ? freqObserver : null;
-
     let deltaF = freqObserverNum !== null ? freqObserverNum - sourceFrequency : null;
-
     let dopplerCoeff = freqObserverNum !== null ? freqObserverNum / sourceFrequency : null;
-
     let distancePercent = Math.abs(observerX - sourceX);
-
     let distanceMeters = distancePercent * METERS_PER_PERCENT;
-
     let timeToObserver = distanceMeters / SPEED_OF_SOUND;
-
     let timeToObserverPercent;
+
     if (speed < SPEED_OF_SOUND) {
         timeToObserverPercent = distancePercent / SPEED_OF_SOUND_SIM;
     } else {
@@ -552,31 +597,65 @@ function updateDopplerDetails() {
     }
 
     let phaseShift = (2 * Math.PI * distanceMeters) / (lambda > 0 ? lambda : 1);
-
     let energyAtObs = 1 / Math.pow(distanceMeters || 1, 2);
-
     let isAudible = sourceFrequency >= 20 && sourceFrequency <= 20000;
-
     let wavefrontsPerSecond = sourceFrequency;
 
-    document.getElementById("dopplerDetails").innerHTML = `
-                <b>Dodatkowe parametry:</b><br>
-                Przesunięcie Dopplera Δf: ${deltaF !== null ? deltaF.toFixed(2) + " Hz" : "—"}<br>
-                Współczynnik Dopplera: ${dopplerCoeff !== null ? dopplerCoeff.toFixed(3) : "—"}<br>
-                Czas dotarcia fali: ${timeToObserver.toFixed(3)} s<br>
-                Przesunięcie fazowe: ${phaseShift.toFixed(2)} rad<br>
-                Energia względna: ${energyAtObs.toExponential(2)}<br>
-                Słyszalność: ${isAudible ? "TAK" : "NIE"}<br>
-            `;
+    dopplerDetails.innerHTML = `
+            <b>Dodatkowe parametry:</b><br>
+            Przesunięcie Dopplera Δf: ${deltaF !== null ? deltaF.toFixed(2) + " Hz" : "—"}<br>
+            Współczynnik Dopplera: ${dopplerCoeff !== null ? dopplerCoeff.toFixed(3) : "—"}<br>
+            Czas dotarcia fali: ${timeToObserver.toFixed(3)} s<br>
+            Przesunięcie fazowe: ${phaseShift.toFixed(2)} rad<br>
+            Energia względna: ${energyAtObs.toExponential(2)}<br>
+            Słyszalność: ${isAudible ? "TAK" : "NIE"}<br>
+        `;
 }
 
+/**
+ * adjustBodyStyle
+ * Ustawia styl tła dokumentu (obraz, rozmiar, powtarzanie, pozycję, kolor).
+ * - Służy do dynamicznej zmiany wyglądu strony (np. tryb nocny, tryb efektu)
+ */
+function adjustBodyStyle({url, bgSize, bgRepeat, bgPosition, bgColor}) {
+    document.body.style.backgroundImage = url;
+    document.body.style.backgroundSize = bgSize;
+    document.body.style.backgroundRepeat = bgRepeat;
+    document.body.style.backgroundPosition = bgPosition;
+    document.body.style.backgroundColor = bgColor;
+}
+
+/**
+ * updateDisplays
+ * Aktualizuje wartości wyświetlane na ekranie (prędkość, częstotliwość) 
+ * na podstawie aktualnych wartości inputów.
+ */
+function updateDisplays() {
+    speedDisplay.textContent = speedControl.value;
+    frequencyDisplay.textContent = frequencyControl.value;
+}
+
+/**
+ * updateSpeedDisplay
+ * Aktualizuje wyświetlane dane dotyczące prędkości źródła i efektów z nią związanych.
+ *
+ * Obliczenia:
+ * - Prędkość w km/h: v × 3.6
+ * - Prędkość w mph: v × 2.23694
+ * - Liczba Macha: M = v / c
+ * - Długość fali: λ = c / fₛ
+ * - Częstotliwość obserwatora: f' = f × (c / (c ± v))
+ * - Kąt stożka Macha (jeśli v ≥ c): θ = arcsin(c / v)
+ * - Wypisuje też odległość względem obserwatora (przed/za/na)
+ *
+ * Dodatkowo wywołuje updateDopplerDetails().
+ */
 function updateSpeedDisplay() {
     const kmh = speed * 3.6;
     const mph = speed * 2.23694;
     let lambda, machAngleDeg, machAngleRad;
     try {
         lambda = countWaveLength(sourceFrequency, SPEED_OF_SOUND);
-
         const mach = speed / SPEED_OF_SOUND;
 
         freqObserver = dopplerFrequencySound(sourceFrequency, SPEED_OF_SOUND, sourceX < observerX ? speed : -speed, 0);
@@ -601,24 +680,23 @@ function updateSpeedDisplay() {
         }
 
         speedDisplay.textContent = speed.toFixed(2);
-
         speedDetails.innerHTML = `
-                        <b> Główne parametry: </b><br>
-                        Prędkość: ${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph<br>
-                        Liczba Macha: ${mach.toFixed(2)}<br>
-                        Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
-                        Długość fali: ${lambda.toFixed(2)} m<br>
-                        Częstotliwość obserwatora (x=${observerX.toFixed(3)}%): ${
+                    <b> Główne parametry: </b><br>
+                    Prędkość: ${speed.toFixed(2)} m/s | ${kmh.toFixed(2)} km/h | ${mph.toFixed(2)} mph<br>
+                    Liczba Macha: ${mach.toFixed(2)}<br>
+                    Częstotliwość źródła: ${sourceFrequency.toFixed(1)} Hz<br>
+                    Długość fali: ${lambda.toFixed(2)} m<br>
+                    Częstotliwość obserwatora (x=${observerX.toFixed(3)}%): ${
             typeof freqObserver === "number" ? freqObserver.toFixed(1) + " Hz" : freqObserver
         }<br>
-                        Kąt stożka Macha: ${
-                            machAngleDeg !== "-"
-                                ? machAngleDeg.toFixed(2) + "° / " + machAngleRad.toFixed(3) + " rad"
-                                : "— (podświetlenie dla poddźwiękowych)"
-                        }
-                        <br>
-                        <b>Odległość od obserwatora: ${distanceText}</b>
-                    `;
+        Kąt stożka Macha: ${
+            machAngleDeg !== "-"
+                ? machAngleDeg.toFixed(2) + "° / " + machAngleRad.toFixed(3) + " rad"
+                : "— (podświetlenie dla poddźwiękowych)"
+        }
+        <br>
+        <b>Odległość od obserwatora: ${distanceText}</b>
+        `;
 
         updateDopplerDetails();
     } catch (error) {
@@ -626,44 +704,22 @@ function updateSpeedDisplay() {
     }
 }
 
+/**
+ * updateFrequencyDisplay
+ * Aktualizuje wyświetlaną częstotliwość źródła.
+ * Wywołuje również updateSpeedDisplay(), ponieważ częstotliwość wpływa na resztę danych.
+ */
 function updateFrequencyDisplay() {
     frequencyDisplay.textContent = sourceFrequency.toFixed(2);
     updateSpeedDisplay();
 }
 
-function createMachCone(timestamp) {
-    document.querySelector(".mach-cone")?.remove();
-
-    if (speed < SPEED_OF_SOUND || !["jet", "missile"].includes(currentType)) {
-        return;
-    }
-
-    const theta = Math.asin(SPEED_OF_SOUND / speed);
-
-    const coneWidth = CONE_WIDTH_PERCENT;
-    const coneHeight = Math.tan(theta) * (coneWidth / 2);
-
-    const scaledFrequency = sourceFrequency / FREQUENCY_SCALE_FACTOR;
-    const period = 1 / scaledFrequency;
-
-    if (timestamp / 1000 - lastWaveTime >= period) {
-        const v_rel = Math.abs(speed - SPEED_OF_SOUND);
-        const relPctPerSec = v_rel / METERS_PER_PERCENT;
-        const waveSpeedPx = (relPctPerSec * canvas.width) / 100;
-
-        const dotRect = movingDot.getBoundingClientRect();
-        const cRect = container.getBoundingClientRect();
-
-        const frontXpx = dotRect.right - cRect.left;
-        const edgeOffsetPx = ((coneWidth * Math.cos(theta)) / 100) * cRect.width;
-        const emitXpx = frontXpx - edgeOffsetPx;
-        const emitPct = (emitXpx / cRect.width) * 100;
-
-        window.emitWave(emitPct, 50, waveSpeedPx, 1);
-        lastWaveTime = timestamp / 1000;
-    }
-}
-
+/**
+ * createDebugMarker
+ * Tworzy tymczasowy znacznik (kreskę) na kontenerze w zadanej pozycji X (w % szerokości).
+ * - Jeśli istnieje poprzedni znacznik → usuwa go
+ * - Dodaje nowy `.debug-marker` i usuwa go po 1 sekundzie
+ */
 function createDebugMarker(xPosition) {
     const existingMarker = document.querySelector(".debug-marker");
     if (existingMarker) existingMarker.remove();
@@ -682,13 +738,42 @@ function createDebugMarker(xPosition) {
     }, 1000);
 }
 
+
+/**
+ * update(timestamp)
+ * Główna pętla animacji — aktualizuje pozycję źródła dźwięku, wygląd tła, typ pojazdu,
+ * fale dźwiękowe, efekty dźwiękowe oraz wizualizację stożka Macha.
+ *
+ * Zakres działania:
+ * - Przesuwa źródło dźwięku (`sourceX`) na podstawie prędkości i upływu czasu
+ * - Resetuje pozycję źródła po wyjściu poza ekran (pętla)
+ * - Na podstawie prędkości klasyfikuje pojazd jako:
+ *     - `ambulance` (1–50 m/s)
+ *     - `sport` (50–117 m/s)
+ *     - `jet` (117–664 m/s)
+ *     - `missile` (≥ 664 m/s)
+ * - Dostosowuje wygląd strony (tło, sprite'y) i częstotliwość źródła
+ * - Jeśli prędkość < prędkości dźwięku:
+ *     - Emituje fale kuliste z częstotliwością `sourceFrequency`
+ * - Jeśli prędkość ≥ prędkości dźwięku i typ to `jet` lub `missile`:
+ *     - Oblicza kąt stożka Macha: θ = arcsin(c / v)
+ *     - Wyznacza pozycję krawędzi stożka Macha (`edgeX`)
+ *     - Sprawdza, czy stożek dotyka obserwatora
+ *         - Jeśli tak i minęło wystarczająco dużo czasu:
+ *             - Odtwarza dźwięk fali uderzeniowej
+ *             - Wyświetla wizualny efekt uderzenia (`.mach-impact`)
+ * - Obsługuje dźwięk silnika odrzutowego (startuje w odpowiednim momencie)
+ * - Kończy się:
+ *     - Wywołaniem `requestAnimationFrame(update)`
+ *     - Aktualizacją stożka Macha (`updateMachConeAndLines`)
+ *     - Aktualizacją parametrów prędkości (`updateSpeedDisplay`)
+ *     - Aktualizacją dźwięku silnika (`updateEngineSound`)
+ *     - Przekazaniem pozycji do `setMachImpactPositions`
+ */
 function update(timestamp) {
     if (isPaused) return;
-
     const deltaTime = 0.016;
-
-    sourceX += (speed / SPEED_OF_SOUND) * deltaTime * 10 * SCALE_FACTOR;
-
+    sourceX += (speed / SPEED_OF_SOUND) * deltaTime * SCALE_FACTOR;
     if (sourceX > 100) {
         sourceX -= 100;
         lastShockwavePos = null;
@@ -699,54 +784,54 @@ function update(timestamp) {
         movingDot.style.left = `${sourceX}%`;
     }
 
-    const isCarSpeed = speed <= 20;
-    const isAmbulance = speed > 20 && speed <= 39;
+    const isAmbulance = speed > 1 && speed <= 50;
     const isCarSport = speed > 50 && speed <= 117;
     const isJet = speed > 117 && speed < 664;
     const isMissile = speed >= 664;
 
     let newType = null;
 
-    if (isCarSpeed) {
-        document.body.style.backgroundImage = "url('./css/img/arizona_road.jpg')";
-        document.body.style.backgroundSize = "cover";
-        document.body.style.backgroundRepeat = "no-repeat";
-        document.body.style.backgroundPosition = "0px -280px";
-        document.body.style.backgroundColor = "#e6a142";
-        newType = "car";
-        observer.style.top = "45%";
-        observer.style.height = "80px";
-    } else if (isAmbulance) {
-        document.body.style.backgroundImage = "url('./css/img/arizona_road.jpg')";
-        document.body.style.backgroundSize = "cover";
-        document.body.style.backgroundRepeat = "no-repeat";
-        document.body.style.backgroundPosition = "0px -280px";
-        document.body.style.backgroundColor = "#e6a142";
+    if (isAmbulance) {
+        adjustBodyStyle({
+            url: "url('./css/img/arizona_road.jpg')",
+            bgSize: "cover",
+            bgRepeat: "no-repeat",
+            bgPosition: "0px -280px",
+            bgColor: "#e6a142",
+        });
         newType = "ambulance";
         observer.style.top = "45%";
         observer.style.height = "80px";
     } else if (isCarSport) {
-        document.body.style.backgroundImage = "url('./css/img/arizona_road.jpg')";
-        document.body.style.backgroundSize = "cover";
-        document.body.style.backgroundRepeat = "no-repeat";
-        document.body.style.backgroundPosition = "0px -280px";
-        document.body.style.backgroundColor = "#e6a142";
+        adjustBodyStyle({
+            url: "url('./css/img/arizona_road.jpg')",
+            bgSize: "cover",
+            bgRepeat: "no-repeat",
+            bgPosition: "0px -280px",
+            bgColor: "#e6a142",
+        });
         newType = "sport";
         observer.style.top = "45%";
         observer.style.height = "80px";
     } else if (isJet) {
-        document.body.style.backgroundImage = "url('./css/img/sky.jpg')";
-        document.body.style.backgroundSize = "cover";
-        document.body.style.backgroundPosition = "0px 180px";
-        document.body.style.backgroundColor = "rgb(193, 255, 244)";
+        adjustBodyStyle({
+            url: "url('./css/img/sky.jpg')",
+            bgSize: "cover",
+            bgRepeat: "no-repeat",
+            bgPosition: "0px 180px",
+            bgColor: "rgb(193, 255, 244)",
+        });
         newType = "jet";
         observer.style.top = "72%";
         observer.style.height = "35px";
     } else if (isMissile) {
-        document.body.style.backgroundImage = "url('./css/img/sky.jpg')";
-        document.body.style.backgroundSize = "cover";
-        document.body.style.backgroundPosition = "0px 180px";
-        document.body.style.backgroundColor = "rgb(193, 255, 244)";
+        adjustBodyStyle({
+            url: "url('./css/img/sky.jpg')",
+            bgSize: "cover",
+            bgRepeat: "no-repeat",
+            bgPosition: "0px 180px",
+            bgColor: "rgb(193, 255, 244)",
+        });
         newType = "missile";
         observer.style.top = "72%";
         observer.style.height = "35px";
@@ -755,15 +840,7 @@ function update(timestamp) {
     if (newType !== currentType) {
         currentType = newType;
 
-        if (newType === "car") {
-            movingDot.src = "./css/img/car_yellow.png";
-            observer.src = "./css/img/human.png";
-            movingDot.style.transform = `translate(-50%, -50%)`;
-            if (!isFrequencyManual) {
-                sourceFrequency = 2500;
-                frequencyControl.value = sourceFrequency;
-            }
-        } else if (newType === "ambulance") {
+        if (newType === "ambulance") {
             movingDot.src = "./css/img/ambulance.png";
             observer.src = "./css/img/nurse.png";
             movingDot.style.transform = `translate(-50%, -50%)`;
@@ -798,23 +875,28 @@ function update(timestamp) {
 
     const scaledFrequency = sourceFrequency / FREQUENCY_SCALE_FACTOR;
     const period = 1 / scaledFrequency;
-    if (speed < SPEED_OF_SOUND && timestamp / 1000 - lastWaveTime >= period) {
-        const v_rel = SPEED_OF_SOUND - speed;
-        const relPctSec = v_rel / METERS_PER_PERCENT;
-        const waveSpeedPx = (relPctSec * canvas.width) / (4000 / speedControl.value);
 
+    if (speed < SPEED_OF_SOUND && timestamp / 1000 - lastWaveTime >= period) {
         const dotRect = movingDot.getBoundingClientRect();
         const cRect = container.getBoundingClientRect();
-        const frontXpx = dotRect.left + dotRect.width - cRect.left;
-        const frontPct = (frontXpx / cRect.width) * 100;
+        const centerXpx = dotRect.left + dotRect.width / 2 - cRect.left;
+        const centerPct = (centerXpx / cRect.width) * 100;
 
-        window.emitWave(frontPct, 50, waveSpeedPx, 1);
-
+        window.emitWave(centerPct, 50, speed, 1);
         lastWaveTime = timestamp / 1000;
     }
 
+    sourceX += (speed / SPEED_OF_SOUND) * deltaTime * SCALE_FACTOR;
+
     const waveWidthPx = 0.95 * parseFloat(getComputedStyle(document.documentElement).fontSize);
     const proximityThreshold = (waveWidthPx / (container.clientWidth || 1000)) * 100 * 5;
+    const obsElem = document.getElementById("observer1");
+    const contRect = container.getBoundingClientRect();
+    const obsRect = obsElem.getBoundingClientRect();
+    const observerCenterPx = obsRect.left + obsRect.width / 2 - contRect.left;
+    const observerCenterPy = obsRect.top + obsRect.height / 2 - contRect.top;
+    const dotRect = movingDot.getBoundingClientRect();
+    const sourceCenterPx = dotRect.left + dotRect.width / 2 - contRect.left;
 
     if (speed >= SPEED_OF_SOUND && (currentType === "jet" || currentType === "missile")) {
         const machAngle = Math.asin(SPEED_OF_SOUND / speed);
@@ -829,17 +911,24 @@ function update(timestamp) {
             (!lastShockwavePos || Math.abs(sourceX - lastShockwavePos) > shockThreshold) &&
             currentTime - lastShockwaveTime > MIN_SHOCKWAVE_INTERVAL;
 
-        createMachCone(timestamp);
+        window.setMachImpactPositions(sourceCenterPx, observerCenterPx);
         updateMachConeAndLines();
 
         if (isConeEdgeAtObserver) {
             lastShockwavePos = sourceX;
             lastShockwaveTime = currentTime;
             playSound("./sounds/shockwave.mp3");
+
+            const impact = document.createElement("div");
+            impact.className = "mach-impact";
+            impact.style.left = `${observerCenterPx}px`;
+            impact.style.top = `${observerCenterPy}px`;
+            container.appendChild(impact);
+            impact.addEventListener("animationend", () => impact.remove());
         }
     }
 
-    if (currentType === "jet" && Math.abs(sourceX - (observerX - 30)) < 0.5 && speed < SPEED_OF_SOUND) {
+    if (currentType === "jet" && Math.abs(sourceX - (observerX - 20)) < 0.5 && speed < SPEED_OF_SOUND) {
         if (!window.jetSoundPlayed) {
             playSound("./sounds/jet.mp3");
             window.jetSoundPlayed = true;
@@ -848,9 +937,10 @@ function update(timestamp) {
         window.jetSoundPlayed = false;
     }
 
-    if (currentType === "jet" && Math.abs(sourceX - observerX) < 0.5 && speed >= SPEED_OF_SOUND) {
+    if (currentType === "jet" && Math.abs(sourceX - observerX + 50) < 0.5 && speed >= SPEED_OF_SOUND) {
         if (!window.jetSoundPlayed) {
             playSound("./sounds/jet.mp3");
+
             window.jetSoundPlayed = true;
         }
     } else if (window.jetSoundPlayed) {
@@ -858,12 +948,22 @@ function update(timestamp) {
     }
 
     requestAnimationFrame(update);
-
     updateMachConeAndLines();
     updateSpeedDisplay();
     updateEngineSound(currentType, sourceX, observerX, speed);
+
+    window.setMachImpactPositions(sourceCenterPx, observerCenterPx);
 }
 
+/**
+ * makePanelDraggable(panel, handle)
+ * Umożliwia przeciąganie elementu `panel` po ekranie za pomocą uchwytu `handle`.
+ *
+ * Obsługa zdarzeń:
+ * - mousedown: zapamiętuje pozycję kursora względem panelu
+ * - mousemove: aktualizuje pozycję panelu zgodnie z ruchem kursora
+ * - mouseup: kończy operację przeciągania
+ */
 function makePanelDraggable(panel, handle) {
     let offsetX = 0,
         offsetY = 0,
@@ -889,6 +989,10 @@ function makePanelDraggable(panel, handle) {
     });
 }
 
+
+// Przypisanie zdarzeń
+// wywoływanie odpowiednich funkcji po załadowaniu dokumentu html
+//
 window.addEventListener("DOMContentLoaded", () => {
     speedControl.addEventListener("input", () => {
         const v = Math.max(+speedControl.min, Math.min(+speedControl.max, +speedControl.value));
@@ -1027,8 +1131,6 @@ window.addEventListener("DOMContentLoaded", () => {
     makePanelDraggable(document.getElementById("dopplerDetails"), document.getElementById("dopplerDetails"));
 
     makePanelDraggable(document.getElementById("controls"), document.getElementById("controls-handle"));
-
-    const tbody = document.getElementById("results-table-body");
 
     document.getElementById("show-results-btn").addEventListener("click", showResultsModal);
 

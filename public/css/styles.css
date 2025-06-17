@@ -1,8 +1,8 @@
-/* Bartłomiej Barszczewski */
-/* Symulacja zjawiska fizycznego */
-/* Efekt Dopplera i zjawisko stożka macha */
-/* Semestr drugi */
-/* Fizyka */
+/*
+    Bartłomiej Barszczewski
+    Fizyka
+    Efekt Dopplera i zjawisko stożka Macha
+*/
 
 * {
     box-sizing: border-box;
@@ -86,6 +86,8 @@ body {
 #speedControlInput, #frequencyControlInput {
     height: 2rem;
     font-size: 1.25rem;
+    width: 10rem;
+    margin-right: 1rem;
 }
 
 .drag-handle {
@@ -210,13 +212,17 @@ input[type="range"] {
     z-index: 900000000;
 }
 
+#movingDot {
+    width: 150px;
+}
+
 .mach-impact {
     position: absolute;
     width: 10px;
     height: 10px;
-    border: 1px solid rgba(255, 0, 140, 0.172);
+    border: 1px solid rgba(255, 26, 9, 0.282);
     border-radius: 50%;
-    background: rgba(255, 0, 123, 0.096);
+    background: rgba(255, 94, 0, 0.254);
     transform: translate(-50%, -50%) scale(1);
     pointer-events: none;
     animation: mach-impact-blast 2.28s cubic-bezier(.45,2,.6,1) forwards;
@@ -289,7 +295,7 @@ input[type="range"] {
     top: 50%;
     transform: translate(-50%, -50%);
     border: 5px solid rgba(255, 0, 0, 0.5);
-    z-index: 100;
+    z-index: 100000;
 }
 
 @keyframes wave-expand-shockwave {
@@ -352,16 +358,20 @@ input[type="range"] {
     top: 0;
     left: 0;
     pointer-events: none;
-    /* Zapobiega interferencji z innymi elementami */
     z-index: 1000000;
 }
 
+#shockwave_triangle {
+    stroke-width: 10; /* Grubość linii */
+    stroke: rgba(176, 0, 124, 0.394); /* Kolor obramowania */
+    fill: none; /* Brak wypełnienia, aby trójkąt był pusty w środku */
+}
+
 #shockwave_upper,
-#shockwave_lower {
-    stroke-width: 3;
-    /* Grubość linii */
-    stroke: rgba(221, 0, 255, 0.394);
-    /* Kolor linii - możesz zmienić na inny, np. blue dla rakiety */
+#shockwave_lower,
+#shockwave_base {
+    stroke-width: 10; /* Grubość linii */
+    stroke: rgba(176, 0, 124, 0.394); /* Kolor obramowania */
 }
 
 .modal {

@@ -1,16 +1,42 @@
-// collision_autoclean_emit_fastfade_impact.js — Fale zawsze emitowane + uderzenie fali uderzeniowej (okrąg z obserwatora)
+/*
+    Bartłomiej Barszczewski
+    Fizyka
+    Efekt Dopplera i zjawisko stożka Macha
+    
+    Ten moduł symuluje rozchodzenie się fal dźwiękowych, efekt Dopplera
+    oraz wizualizuje stożek Macha przy prędkościach ponaddźwiękowych.
+
+    Wzory wykorzystane w symulacji:
+        1. Promień fali: r(t) = v_wave * t,
+        gdzie v_wave = |c - v_source| (prędkość propagacji fali względem źródła).
+        2. Przeliczenie prędkości na piksele: speed_pxps = v_effective * (canvas.width / (c * METERS_PER_PERCENT)).
+        3. Kąt stożka Mach (podstawowy): sin(θ) = c / v_source dla v_source > c (użytkowo nieobliczany, ale wizualizacja uderzenia oparta na warunku supersonicznym).
+        4. Odbicie wektora: R = D - 2 (D·N) N,
+        gdzie D to wektor padający, N normalna powierzchni.
+        5. Odległość od obserwatora: d = √(dx² + dy²).
+        6. Warunek kolizji front fal: |d - r| < v_wave * dt,
+        zapewnia detekcję, gdy fala dociera do obserwatora w kroku czasowym dt.
+*/
+
 (function () {
     const container = document.querySelector(".container");
     const canvas = document.getElementById("waveCanvas");
     const ctx = canvas.getContext("2d");
     const SPEED_OF_SOUND = 343;
+    const METERS_PER_PERCENT = 3.43; // Skalowanie: metry na procent wymiaru kanwy
 
-    function pxPerMeter() {
-        return canvas.width / 343;
-    }
+    // Obiekt obserwatora: pozycja i promień wykorzystywany do detekcji kolizji
 
-    const observer = {x: canvas.width * 0.5, y: canvas.height * 0.5, radius: 50};
+    const observer = {x: canvas.width * METERS_PER_PERCENT, y: canvas.height * METERS_PER_PERCENT, radius: 50};
+    let objectPositionX = 0; // Śledzi poziomą pozycję źródła dźwięku
 
+    /**
+     * Klasa reprezentująca pojedynczą falę dźwiękową.
+     * Odpowiada za jej rozszerzanie, zanikanie i czas życia,
+     * uwzględniając prędkość źródła względem prędkości dźwięku.
+     * Mniejszy lifetime (×0.25) sprawia, że fale szybciej znikają,
+     * co ułatwia obserwację efektu stożka Mach.
+     */
     class Wave {
         constructor(x, y, speed_pxps, amplitude, sourceSpeed_mps, color = "rgba(193, 0, 161, 0.45)", width = 5) {
             this.x = x;
@@ -22,40 +48,66 @@
             this.sourceSpeed_mps = sourceSpeed_mps;
             this.color = color;
             this.lineWidth = width;
+
+            // Obliczamy czas życia fali: dłuższy przy wolnych prędkościach,
+            // standardowy przy supersonicznych (Mach cone).
             const diag = Math.hypot(canvas.width, canvas.height);
-            const baseLifetime = this.speed < 10 ? 0.5 : diag / Math.max(1, this.speed);
-            let fade = 1;
-            if (this.sourceSpeed_mps >= SPEED_OF_SOUND - 20) fade = 1;
-            if (this.sourceSpeed_mps >= SPEED_OF_SOUND - 5) fade = 1;
-            if (this.sourceSpeed_mps >= SPEED_OF_SOUND) fade = 1;
-            this.lifetime = baseLifetime * fade;
+            const baseLifetime = this.speed < 20 ? METERS_PER_PERCENT : diag / Math.max(1, this.speed);
+
+            this.lifetime = baseLifetime * 0.25;
             this.alive = true;
         }
+
+        /**
+         * Aktualizuje promień i wiek fali; oznacza martwą przy przekroczeniu czasu życia.
+         */
         update(dt) {
             this.age += dt;
             if (this.age >= this.lifetime) this.alive = false;
-            this.radius += this.speed * dt * 5;
+            this.radius += this.speed * dt * METERS_PER_PERCENT;
         }
+        /**
+         * Rysuje falę jako okrąg z zanikaną przezroczystością.
+         * Przesuwa punkt wyjścia na osi X o promień emitującego elementu #movingDot,
+         * aby odzwierciedlić przesunięcie źródła (efekt Dopplera dla prędkości poniżej 343 m/s).
+         */
         draw(ctx) {
             const t = this.age / this.lifetime;
             const alpha = this.amplitude * (1 - t);
+            const movingDotHTML = document.getElementById("movingDot");
+            const compStyle = window.getComputedStyle(movingDotHTML);
+            const widthPx = parseFloat(compStyle.width);
+            const movingDotRadius = widthPx / 2;
+            // obliczam promień
+            // obiektu który emituje falę
+            // tak aby przesunąć na osi X falę do przodu dla
+            // odzwierciedlenia efektu Dopplera
+            // dla prędkości poniżej 343 m/s
+            //
             ctx.save();
             ctx.globalAlpha = alpha;
             ctx.strokeStyle = this.color;
             ctx.lineWidth = this.lineWidth;
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.arc(this.x + movingDotRadius, this.y, this.radius, 0, Math.PI * 2);
             ctx.stroke();
             ctx.restore();
         }
-        
     }
 
+    /**
+     * Odbija wektor kierunku (dirX, dirY) względem normalnej (nX, nY).
+     * Używane do symulacji odbicia fali od obserwatora.
+     */
     function reflect(dirX, dirY, nX, nY) {
         const dot = dirX * nX + dirY * nY;
         return {x: dirX - 2 * dot * nX, y: dirY - 2 * dot * nY};
     }
 
+    /**
+     * Sprawdza, czy front fali koliduje z obserwatorem w danym kroku czasowym.
+     * Kolizja inicjuje efekt stożka Macha, jeśli źródło ma prędkość supersoniczną.
+     */
     function checkCollision(w, obs, dt) {
         const dx = w.x - obs.x;
         const dy = w.y - obs.y;
@@ -63,23 +115,16 @@
         return Math.abs(d - w.radius) < w.speed * dt;
     }
 
-    // ---- Mach Cone SHOCKWAVE logic ----
-    let machImpactLast = 0;
-    function emitShockwaveFromObserver() {
-        // Emit okrągłej fali uderzeniowej z punktu obserwatora, w kolorze czerwonym
-        const speed_pxps = SPEED_OF_SOUND * pxPerMeter();
-        waves.push(new Wave(observer.x, observer.y, speed_pxps, 3.0, SPEED_OF_SOUND + 1, "rgba(255, 0, 0, 0.85)", 10));
-    }
-    // ---- END Mach Cone logic ----
-
     let waves = [];
     let reflections = [];
     let lastTime = performance.now();
 
+    /**
+     * Dostosowuje rozmiar kanwy do wymiarów kontenera i resetuje symulację.
+     */
     function resizeCanvas() {
         canvas.width = container.clientWidth;
         canvas.height = container.clientHeight;
-        // czyścisz stare fale (bo inaczej zostaną w złych współrzędnych)
         waves = [];
         reflections = [];
         observer.x = canvas.width * 0.5;
@@ -89,6 +134,10 @@
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
+    /**
+     * Główna pętla animacji: aktualizuje i rysuje fale,
+     * sprawdza kolizje i generuje wizualizację uderzenia Mach Cone.
+     */
     function animate(t) {
         const dt = (t - lastTime) / 1000;
         lastTime = t;
@@ -99,14 +148,6 @@
         observer.y = obsRect.top + obsRect.height / 2 - contRect.top;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Pozycje źródła i obserwatora (ustawiaj globalnie w swoim kodzie, np. po każdej klatce animacji)
-        const currentSpeed = window.lastSourceSpeedMps || 0;
-        const sourceX = window.lastSourceX || 0;
-        const observerX = window.lastObserverX || 0;
-
-        // SYMULACJA UDERZENIA FALI UDERZENIOWEJ
-        simulateMachImpactIfNeeded(currentSpeed, sourceX, observerX, t / 1000);
-
         for (let w of waves) {
             if (!w.alive) continue;
             w.update(dt);
@@ -114,22 +155,28 @@
             if (checkCollision(w, observer, dt)) {
                 w.alive = false;
 
-                // 1) Wyświetl graficzny efekt fali uderzeniowej:
-                const cont = document.querySelector(".container");
-                const obsElem = document.getElementById("observer1");
-                const obsRect = obsElem.getBoundingClientRect();
-                const contRect = cont.getBoundingClientRect();
+                // Sprawdzamy, czy obiekt jest za obserwatorem i czy przekracza prędkość dźwięku
+                const isBehindObserver = objectPositionX < observer.x;
+                const isSupersonic = w.sourceSpeed_mps > SPEED_OF_SOUND;
 
-                const impact = document.createElement("div");
-                impact.className = "mach-impact";
-                impact.style.position = "absolute";
-                impact.style.left = obsRect.left + obsRect.width / 2 - contRect.left + "px";
-                impact.style.top = obsRect.top + obsRect.height / 2 - contRect.top + "px";
-                impact.style.zIndex = "10000"; // nad wszystkim
-                cont.appendChild(impact);
-                impact.addEventListener("animationend", () => impact.remove());
+                if (isBehindObserver && isSupersonic) {
+                    // Wyświetl efekt wizualny tylko w tych warunkach
+                    const cont = document.querySelector(".container");
+                    const obsElem = document.getElementById("observer1");
+                    const obsRect = obsElem.getBoundingClientRect();
+                    const contRect = cont.getBoundingClientRect();
 
-                // 2) Twoje odbicie fali:
+                    const impact = document.createElement("div");
+                    impact.className = "mach-impact";
+                    impact.style.position = "absolute";
+                    impact.style.left = obsRect.left + obsRect.width / 2 - contRect.left + "px";
+                    impact.style.top = obsRect.top + obsRect.height / 2 - contRect.top + "px";
+                    impact.style.zIndex = "10000";
+                    cont.appendChild(impact);
+                    impact.addEventListener("animationend", () => impact.remove());
+                }
+
+                // Odbicie fali (niezależnie od warunków wizualizacji)
                 const dx = w.x - observer.x;
                 const dy = w.y - observer.y;
                 const d = Math.hypot(dx, dy) || 1;
@@ -157,7 +204,7 @@
         requestAnimationFrame(animate);
     }
 
-    // Emituje fale dla KAŻDEJ prędkości, fade dla wysokich v
+    // Funkcja emitująca pojedynczą falę na podstawie procentowej pozycji źródła
     window.emitWave = function (xPercent, yPercent = 50, sourceSpeed_mps = speed, amplitude = 1, isShockwave = false) {
         const pxpm = canvas.width / (SPEED_OF_SOUND * METERS_PER_PERCENT);
         const effectiveSpeed_mps = Math.abs(SPEED_OF_SOUND - sourceSpeed_mps) || 1;
@@ -169,53 +216,18 @@
         );
     };
 
-    window.emitWaveAccurate = function (speed, timestamp, lastEmitTime) {
-        const deltaT = timestamp / 1000 - lastEmitTime; // sekundy
-        const SCALE_FACTOR = 5;
-        const movedPct = (speed / 343) * deltaT * SCALE_FACTOR;
-        const realEmitX = sourceX + movedPct;
-
-        // Zabezpieczenie żeby nie wyleciał poza ekran
-        const clampedX = Math.max(0, Math.min(realEmitX, 100));
-        window.emitWave(clampedX, 50, speed, 1);
-    };
-
-    // Dodaj pozycje w px w swoim kodzie głównym przy każdej klatce!
+    /**
+     * Aktualizuje położenie źródła i obserwatora w poziomie,
+     * kluczowe dla detekcji kolizji i generacji stożka Macha.
+     */
     window.setMachImpactPositions = function (sourceX, observerX) {
         window.lastSourceX = sourceX;
         window.lastObserverX = observerX;
+        objectPositionX = sourceX; // Śledzenie pozycji obiektu względem obserwatora
     };
 
     window.Wave = Wave;
     window.reflect = reflect;
     window.checkCollision = checkCollision;
     requestAnimationFrame(animate);
-
-    function simulateMachImpactIfNeeded(sourceSpeed, sourceX, observerX, timestamp) {
-        if (sourceSpeed < SPEED_OF_SOUND) return;
-
-        const IMPACT_THRESHOLD_PX = observer.radius; // 40px
-
-        if (Math.abs(sourceX - observerX) < IMPACT_THRESHOLD_PX) {
-            if (timestamp - machImpactLast > 0.7) {
-                machImpactLast = timestamp;
-
-                // ef czyt graficzny
-                const obsElem = document.getElementById("observer1");
-                const cont = document.querySelector(".container");
-                const obsRect = obsElem.getBoundingClientRect();
-                const contRect = cont.getBoundingClientRect();
-
-                const impact = document.createElement("div");
-                impact.className = "mach-impact";
-                impact.style.left = obsRect.left + obsRect.width / 2 - contRect.left + "px";
-                impact.style.top = obsRect.top + obsRect.height / 2 - contRect.top + "px";
-                cont.appendChild(impact);
-                impact.addEventListener("animationend", () => impact.remove());
-
-                // oryginalne emitowanie shockwave
-                emitShockwaveFromObserver();
-            }
-        }
-    }
 })();
