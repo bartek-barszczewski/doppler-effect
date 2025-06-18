@@ -33,9 +33,14 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none; /* żeby mysz przechodziła dalej */
+    pointer-events: none;
+    /* żeby mysz przechodziła dalej */
 }
-.container { position: relative; overflow: hidden; }
+
+.container {
+    position: relative;
+    overflow: hidden;
+}
 
 .control-panel {
     position: fixed;
@@ -85,7 +90,8 @@ body {
     height: max-content;
 }
 
-#speedControlInput, #frequencyControlInput {
+#speedControlInput,
+#frequencyControlInput {
     height: 2rem;
     font-size: 1.25rem;
     width: 10rem;
@@ -227,14 +233,25 @@ input[type="range"] {
     background: rgba(255, 94, 0, 0.254);
     transform: translate(-50%, -50%) scale(1);
     pointer-events: none;
-    animation: mach-impact-blast 2.28s cubic-bezier(.45,2,.6,1) forwards;
+    animation: mach-impact-blast 2.28s cubic-bezier(.45, 2, .6, 1) forwards;
     z-index: 10000;
 }
 
 @keyframes mach-impact-blast {
-    0%   { transform: translate(-50%,-50%) scale(1); opacity: 1; }
-    50%  { transform: translate(-50%,-50%) scale(8); opacity: 1; }
-    100% { transform: translate(-50%,-50%) scale(8); opacity: 0; }
+    0% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(8);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(8);
+        opacity: 0;
+    }
 }
 
 .observer {
@@ -364,30 +381,38 @@ input[type="range"] {
 }
 
 #shockwave_triangle {
-    stroke-width: 10; /* Grubość linii */
-    stroke: rgba(176, 0, 124, 0.394); /* Kolor obramowania */
-    fill: none; /* Brak wypełnienia, aby trójkąt był pusty w środku */
+    stroke-width: 10;
+    /* Grubość linii */
+    stroke: rgba(176, 0, 124, 0.394);
+    /* Kolor obramowania */
+    fill: none;
+    /* Brak wypełnienia, aby trójkąt był pusty w środku */
 }
 
 #shockwave_upper,
 #shockwave_lower,
 #shockwave_base {
-    stroke-width: 10; /* Grubość linii */
-    stroke: rgba(176, 0, 124, 0.394); /* Kolor obramowania */
+    stroke-width: 10;
+    /* Grubość linii */
+    stroke: rgba(176, 0, 124, 0.394);
+    /* Kolor obramowania */
 }
 
 .modal {
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(0, 0, 0, 0.5);
     z-index: 999999999999999999999;
     display: flex;
     justify-content: center;
     align-items: center;
-  }
-  .modal-content {
-    
+}
+
+.modal-content {
+
     background: white;
     padding: 20px;
     width: 90%;
@@ -395,17 +420,535 @@ input[type="range"] {
     border-radius: 8px;
     overflow: auto;
     max-height: 90%;
-  }
-  .close-btn {
+}
+
+.close-btn {
     float: right;
     font-size: 24px;
     cursor: pointer;
-  }
-  table {
+}
+
+table {
     width: 100%;
     border-collapse: collapse;
-  }
-  th, td {
+}
+
+th,
+td {
     padding: 8px;
     border: 1px solid #ccc;
-  }
+}
+
+@media screen and (max-width: 1280px) and (max-height: 1024px) {
+    .controls {
+        position: fixed;
+        top: 2%;
+        right: 1%;
+        z-index: 1000;
+        padding: 0.65rem 10.4px 0rem;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        width: 480px;
+        max-width: 480px;
+        background: rgba(255, 255, 255, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    fieldset {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        border: none;
+    }
+
+    fieldset legend,
+    label {
+        font-size: 0.95rem;
+        margin: 0.35rem 0;
+    }
+
+    #speedControlInput,
+    #frequencyControlInput {
+        height: 1.25rem;
+        font-size: 0.95rem;
+        width: 5rem;
+        margin-right: 1rem;
+    }
+
+    .note {
+        width: 95%;
+        font-weight: normal !important;
+        font-size: 1rem;
+        text-align: left !important;
+    }
+
+    #dopplerDetails {
+        position: fixed;
+        bottom: 2%;
+        right: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 420px;
+        height: max-content;
+        z-index: 10000000;
+    }
+
+    #speedDetails {
+        position: fixed;
+        bottom: 2%;
+        left: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.95rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 420px;
+        height: max-content;
+    }
+
+    .control-btn {
+        background-color: white;
+        color: black;
+        width: 8rem;
+        height: max-content;
+        padding: 0.45rem;
+        border-radius: 8px;
+        border: 1px solid #aaa;
+        font-size: 0.95rem;
+    }
+
+    #movingDot {
+        width: 150px;
+    }
+
+    .dot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        top: 50%;
+        height: auto;
+        z-index: 900000000;
+    }
+
+}
+
+@media screen and (max-width: 1280px) and (max-height: 800px) {
+        .controls {
+        position: fixed;
+        top: 2%;
+        right: 1%;
+        z-index: 1000;
+        padding: 0.65rem 10.4px 0rem;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        width: 320px;
+        max-width: 320px;
+        background: rgba(255, 255, 255, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    fieldset {
+        width: 90%;
+        height: 90%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        border: none;
+    }
+
+    fieldset legend,
+    label {
+        font-size: 0.65rem;
+        margin: 0.25rem 0;
+    }
+
+    #speedControlInput,
+    #frequencyControlInput {
+        height: 1.25rem;
+        font-size: 0.65rem;
+        width: 3rem;
+        margin-right: 1rem;
+    }
+
+    .note {
+        width: 85%;
+        font-weight: normal !important;
+        font-size: 0.75rem;
+        text-align: left !important;
+    }
+
+    #dopplerDetails {
+        position: fixed;
+        bottom: 2%;
+        right: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+        z-index: 10000000;
+    }
+
+    #speedDetails {
+        position: fixed;
+        bottom: 2%;
+        left: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+    }
+
+    .control-btn {
+        background-color: white;
+        color: black;
+        width: 6rem;
+        height: max-content;
+        padding: 0.25rem;
+        border-radius: 8px;
+        border: 1px solid #aaa;
+        font-size: 0.65rem;
+    }
+
+    #movingDot {
+        width: 135px;
+    }
+
+    .dot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        top: 50%;
+        height: auto;
+        z-index: 900000000;
+    }
+}
+
+@media screen and (max-width: 1280px) and (max-height: 720px) {
+
+    .controls {
+        position: fixed;
+        top: 2%;
+        right: 1%;
+        z-index: 1000;
+        padding: 0.65rem 10.4px 0rem;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        width: 320px;
+        max-width: 320px;
+        background: rgba(255, 255, 255, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    fieldset {
+        width: 90%;
+        height: 90%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        border: none;
+    }
+
+    fieldset legend,
+    label {
+        font-size: 0.65rem;
+        margin: 0.25rem 0;
+    }
+
+    #speedControlInput,
+    #frequencyControlInput {
+        height: 1.25rem;
+        font-size: 0.65rem;
+        width: 3rem;
+        margin-right: 1rem;
+    }
+
+    .note {
+        width: 85%;
+        font-weight: normal !important;
+        font-size: 0.75rem;
+        text-align: left !important;
+    }
+
+    #dopplerDetails {
+        position: fixed;
+        bottom: 2%;
+        right: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+        z-index: 10000000;
+    }
+
+    #speedDetails {
+        position: fixed;
+        bottom: 2%;
+        left: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+    }
+
+    .control-btn {
+        background-color: white;
+        color: black;
+        width: 6rem;
+        height: max-content;
+        padding: 0.25rem;
+        border-radius: 8px;
+        border: 1px solid #aaa;
+        font-size: 0.65rem;
+    }
+
+    #movingDot {
+        width: 135px;
+    }
+
+    .dot {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        height: auto;
+        z-index: 900000000;
+    }
+}
+
+@media screen and (max-width: 1024px) and (max-height: 768px) {
+
+    .controls {
+        position: fixed;
+        top: 2%;
+        right: 1%;
+        z-index: 1000;
+        padding: 0.65rem 10.4px 0rem;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        width: 320px;
+        max-width: 320px;
+        background: rgba(255, 255, 255, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    fieldset {
+        width: 90%;
+        height: 90%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        border: none;
+    }
+
+    fieldset legend,
+    label {
+        font-size: 0.65rem;
+        margin: 0.25rem 0;
+    }
+
+    #speedControlInput,
+    #frequencyControlInput {
+        height: 1.25rem;
+        font-size: 0.65rem;
+        width: 3rem;
+        margin-right: 1rem;
+    }
+
+    .note {
+        width: 85%;
+        font-weight: normal !important;
+        font-size: 0.75rem;
+        text-align: left !important;
+    }
+
+    #dopplerDetails {
+        position: fixed;
+        bottom: 2%;
+        right: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+        z-index: 10000000;
+    }
+
+    #speedDetails {
+        position: fixed;
+        bottom: 2%;
+        left: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+    }
+
+    .control-btn {
+        background-color: white;
+        color: black;
+        width: 6rem;
+        height: max-content;
+        padding: 0.25rem;
+        border-radius: 8px;
+        border: 1px solid #aaa;
+        font-size: 0.65rem;
+    }
+
+    #movingDot {
+        width: 115px;
+    }
+
+    .dot {
+        position: absolute;
+        top: 45%;
+        transform: translate(-50%, -50%);
+        height: auto;
+        z-index: 900000000;
+    }
+}
+
+@media screen and (max-width: 800px) and (max-height: 600px) {
+    .controls {
+        position: fixed;
+        top: 2%;
+        right: 1%;
+        z-index: 1000;
+        padding: 0.65rem 10.4px 0rem;
+        border: 1px solid #ccc;
+        border-radius: 12px;
+        width: 320px;
+        max-width: 320px;
+        background: rgba(255, 255, 255, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    fieldset {
+        width: 90%;
+        height: 90%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        border: none;
+    }
+
+    fieldset legend,
+    label {
+        font-size: 0.65rem;
+        margin: 0.25rem 0;
+    }
+
+    #speedControlInput,
+    #frequencyControlInput {
+        height: 1.25rem;
+        font-size: 0.65rem;
+        width: 3rem;
+        margin-right: 1rem;
+    }
+
+    .note {
+        width: 85%;
+        font-weight: normal !important;
+        font-size: 0.75rem;
+        text-align: left !important;
+    }
+
+    #dopplerDetails {
+        position: fixed;
+        bottom: 2%;
+        right: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+        z-index: 10000000;
+    }
+
+    #speedDetails {
+        position: fixed;
+        bottom: 2%;
+        left: 1%;
+        background: rgba(255, 255, 255, 0.7);
+        color: #333;
+        padding: 15px;
+        border-radius: 10px;
+        font-size: 0.65rem;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        width: 320px;
+        height: max-content;
+    }
+
+    .control-btn {
+        background-color: white;
+        color: black;
+        width: 6rem;
+        height: max-content;
+        padding: 0.25rem;
+        border-radius: 8px;
+        border: 1px solid #aaa;
+        font-size: 0.65rem;
+    }
+
+    #movingDot {
+        width: 100px;
+    }
+
+    .dot {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        height: auto;
+        z-index: 900000000;
+    }
+
+}

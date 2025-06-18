@@ -18,7 +18,6 @@ const dopplerDetails = document.getElementById("dopplerDetails");
 // Kontener do responsywnego dopasowania wielkości <canvas>
 const container = document.querySelector(".container");
 
-
 // Sterowanie prędkością i częstotliwością – inputy i ich wyświetlacze
 const speedControl = document.getElementById("speedControl");
 const speedControlInput = document.getElementById("speedControlInput");
@@ -87,7 +86,6 @@ let currentSoundType = null;
 let lastEngineSoundType = null;
 let isPaused = false;
 
-
 // Funkcja: przy zmianie rozmiaru okna aktualizuje wielkość <canvas>
 // dzięki temu rysunek zawsze pasuje do .container
 function resizeWaveCanvas() {
@@ -98,7 +96,6 @@ window.addEventListener("resize", resizeWaveCanvas);
 resizeWaveCanvas(); // initial setup
 
 let coneStartTime = null;
-
 
 /**
  * showResultsModal()
@@ -112,7 +109,7 @@ let coneStartTime = null;
  *    – Kąt stożka Mach: θ = arcsin(c / v)   dla v ≥ c
  *    – Długość fali: λ = c / f₀
  *    – Przesunięcie Dopplera:
- *        f′ = f₀ · (c / (c ∓ v))  
+ *        f′ = f₀ · (c / (c ∓ v))
  *      gdzie „–” jeśli źródło się zbliża, „+” jeśli oddala
  *    – Δf = f′ – f₀, współczynnik Dopplera: f′ / f₀
  *    – Odległość: Δx = |x_obs – x₀| · METERS_PER_PERCENT
@@ -120,7 +117,7 @@ let coneStartTime = null;
  *    – Przesunięcie fazowe: Δφ = (2π · d) / λ
  *    – Energia względna: E ∝ 1 / d²
  *    – Słyszalność: f₀ ∈ [20, 20000] Hz
- * 
+ *
  * Następnie wypełnia tabelę w modalu odpowiednimi wartościami i pokazuje go.
  */
 function showResultsModal() {
@@ -209,7 +206,7 @@ function showResultsModal() {
  * 4. Ustawia głośność syreny na 50% i podłącza wyjście do domyślnego urządzenia audio.
  *
  * */
- 
+
 function startAmbulanceSiren() {
     stopAmbulanceSiren();
 
@@ -242,13 +239,13 @@ function startAmbulanceSiren() {
 }
 
 /* *
-* stopAmbulanceSiren()
-*
-* Zatrzymuje syrenę i czyści zasoby:
-* – Zatrzymuje (stop) i odłącza (_disconnect_) oba oscylatory (osc, lfo).
-* – Odłącza obiekty gain (lfoGain, gain).
-* – Zamyka AudioContext, aby zwolnić zasoby systemowe.
-*/
+ * stopAmbulanceSiren()
+ *
+ * Zatrzymuje syrenę i czyści zasoby:
+ * – Zatrzymuje (stop) i odłącza (_disconnect_) oba oscylatory (osc, lfo).
+ * – Odłącza obiekty gain (lfoGain, gain).
+ * – Zamyka AudioContext, aby zwolnić zasoby systemowe.
+ */
 function stopAmbulanceSiren() {
     if (osc) {
         try {
@@ -629,7 +626,7 @@ function adjustBodyStyle({url, bgSize, bgRepeat, bgPosition, bgColor}) {
 
 /**
  * updateDisplays
- * Aktualizuje wartości wyświetlane na ekranie (prędkość, częstotliwość) 
+ * Aktualizuje wartości wyświetlane na ekranie (prędkość, częstotliwość)
  * na podstawie aktualnych wartości inputów.
  */
 function updateDisplays() {
@@ -740,7 +737,6 @@ function createDebugMarker(xPosition) {
     }, 1000);
 }
 
-
 /**
  * update(timestamp)
  * Główna pętla animacji — aktualizuje pozycję źródła dźwięku, wygląd tła, typ pojazdu,
@@ -802,8 +798,34 @@ function update(timestamp) {
             bgColor: "#e6a142",
         });
         newType = "ambulance";
+
         observer.style.top = "45%";
         observer.style.height = "80px";
+
+        if (window.innerWidth <= 800 && window.innerHeight <= 600) {
+            observer.style.top = "30%";
+            observer.style.height = "45px";
+        }
+
+        if (
+            window.innerWidth > 800 &&
+            window.innerWidth <= 1024 &&
+            window.innerHeight > 600 &&
+            window.innerHeight <= 768
+        ) {
+            observer.style.top = "40%";
+            observer.style.height = "50px";
+        }
+
+        if (
+            window.innerWidth > 1024 &&
+            window.innerWidth <= 1280 &&
+            window.innerHeight >= 720 &&
+            window.innerHeight <= 800
+        ) {
+            observer.style.top = "35%";
+            observer.style.height = "50px";
+        }
     } else if (isCarSport) {
         adjustBodyStyle({
             url: "url('./css/img/arizona_road.jpg')",
@@ -813,8 +835,35 @@ function update(timestamp) {
             bgColor: "#e6a142",
         });
         newType = "sport";
+
         observer.style.top = "45%";
         observer.style.height = "80px";
+
+        if (window.innerWidth <= 800 && window.innerHeight <= 600) {
+            observer.style.top = "30%";
+            observer.style.height = "45px";
+        }
+
+        if (
+            window.innerWidth > 800 &&
+            window.innerWidth <= 1024 &&
+            window.innerHeight > 600 &&
+            window.innerHeight <= 768
+        ) {
+            observer.style.top = "40%";
+            observer.style.height = "50px";
+        }
+
+        if (
+            window.innerWidth > 1024 &&
+            window.innerWidth <= 1280 &&
+            window.innerHeight >= 720 &&
+            window.innerHeight <= 800
+        ) {
+            observer.style.top = "35%";
+            observer.style.height = "50px";
+        }
+
     } else if (isJet) {
         adjustBodyStyle({
             url: "url('./css/img/sky.jpg')",
@@ -826,6 +875,42 @@ function update(timestamp) {
         newType = "jet";
         observer.style.top = "72%";
         observer.style.height = "35px";
+
+        if (window.innerWidth <= 800 && window.innerHeight <= 600) {
+            observer.style.top = "75%";
+            observer.style.height = "40px";
+        }
+
+        if (
+            window.innerWidth > 800 &&
+            window.innerWidth <= 1024 &&
+            window.innerHeight > 600 &&
+            window.innerHeight <= 768
+        ) {
+            observer.style.top = "40%";
+            observer.style.height = "50px";
+        }
+
+        if (
+            window.innerWidth > 1024 &&
+            window.innerWidth <= 1280 &&
+            window.innerHeight >= 720 &&
+            window.innerHeight <= 800
+        ) {
+            observer.style.top = "70.75%";
+            observer.style.height = "45px";
+        }
+
+        if (
+            window.innerWidth > 1280 &&
+            window.innerWidth <= 1440 &&
+            window.innerHeight >= 800 &&
+            window.innerHeight <= 900
+        ) {
+            observer.style.top = "66%";
+            observer.style.height = "45px";
+        }
+
     } else if (isMissile) {
         adjustBodyStyle({
             url: "url('./css/img/sky.jpg')",
@@ -837,6 +922,31 @@ function update(timestamp) {
         newType = "missile";
         observer.style.top = "72%";
         observer.style.height = "35px";
+
+        if (window.innerWidth <= 800 && window.innerHeight <= 600) {
+            observer.style.top = "75%";
+            observer.style.height = "40px";
+        }
+
+        if (
+            window.innerWidth > 800 &&
+            window.innerWidth <= 1024 &&
+            window.innerHeight > 600 &&
+            window.innerHeight <= 768
+        ) {
+            observer.style.top = "40%";
+            observer.style.height = "50px";
+        }
+
+        if (
+            window.innerWidth > 1024 &&
+            window.innerWidth <= 1280 &&
+            window.innerHeight > 720 &&
+            window.innerHeight <= 800
+        ) {
+            observer.style.top = "70.75%";
+            observer.style.height = "45px";
+        }
     }
 
     if (newType !== currentType) {
@@ -990,7 +1100,6 @@ function makePanelDraggable(panel, handle) {
         document.body.style.cursor = "";
     });
 }
-
 
 // Przypisanie zdarzeń
 // wywoływanie odpowiednich funkcji po załadowaniu dokumentu html
